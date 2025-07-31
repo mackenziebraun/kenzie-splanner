@@ -1,0 +1,3044 @@
+import React, { useState, useEffect } from 'react';
+
+const ADHDSuccessTracker = () => {
+  const [currentView, setCurrentView] = useState('today');
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  const [tasks, setTasks] = useState({
+    wakeUp: false,
+    basicCare: false,
+    eatSomething: false,
+    mentalHealth: false,
+    jobStep: false,
+    careerStep: false,
+    celebrate: false
+  });
+
+  const [selectedMentalHealth, setSelectedMentalHealth] = useState('');
+  const [selectedJobStep, setSelectedJobStep] = useState('');
+  const [selectedCareerStep, setSelectedCareerStep] = useState('');
+  const [daysThisWeek, setDaysThisWeek] = useState(0);
+  
+  // Timer/Pomodoro state
+  const [timer, setTimer] = useState({
+    minutes: 25,
+    seconds: 0,
+    isRunning: false,
+    mode: 'work' // 'work' or 'break'
+  });
+  
+  const [isFullscreenTimer, setIsFullscreenTimer] = useState(false);
+
+  // Daily gratitude and affirmation
+  const [dailyReflection, setDailyReflection] = useState({
+    gratitude: { text: '', isSubmitted: false, showTwinkle: false },
+    affirmation: { text: '', isSubmitted: false, showTwinkle: false }
+  });
+
+  // Monthly accomplishment tracking
+  const [monthlyData, setMonthlyData] = useState({});
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Multi-week planning - Initialize selected week with current week start
+  const [selectedWeekForPlanning, setSelectedWeekForPlanning] = useState(() => {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    return startOfWeek.toISOString().split('T')[0];
+  });
+  
+  const [allWeekPlans, setAllWeekPlans] = useState({});
+
+  // Energy and mood tracking
+  const [dailyEnergy, setDailyEnergy] = useState('medium'); // 'survival', 'low', 'medium', 'high'
+  const [dailyMood, setDailyMood] = useState(''); // '😔', '😐', '😊'
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState('');
+  
+  // Future self messages
+  const [futureMessages, setFutureMessages] = useState([
+    "Hey there - you're stronger than you think. Even tiny steps count. 💚",
+    "Remember: rest is productive too. You're doing enough just by existing today.",
+    "I'm proud of you for trying, even when everything feels hard.",
+    "You've gotten through hard days before. You can do this one too.",
+    "Your worth isn't measured by your productivity. You matter just as you are."
+  ]);
+  const [newFutureMessage, setNewFutureMessage] = useState('');
+  
+  // Habit tracking
+  const [habits, setHabits] = useState({
+    water: { name: 'Drink water', streak: 0, todayDone: false },
+    exercise: { name: 'Move body (even 5 min)', streak: 0, todayDone: false },
+    sleep: { name: 'Decent bedtime', streak: 0, todayDone: false },
+    journal: { name: 'Write 1 sentence', streak: 0, todayDone: false },
+    outside: { name: 'Go outside', streak: 0, todayDone: false },
+    friend: { name: 'Connect with someone', streak: 0, todayDone: false }
+  });
+
+  // Customizable dropdown options
+  const [customOptions, setCustomOptions] = useState({
+    mentalHealth: [
+      "Take 5 deep breaths",
+      "Step outside for 2 minutes", 
+      "Write down 1 thing I'm grateful for",
+      "Listen to 1 favorite song",
+      "Do 30 seconds of stretching",
+      "Text someone who cares about me",
+      "Just rest for 10 minutes without guilt",
+      "Pet an animal or look at cute animal photos",
+      "Make a warm drink and sip it slowly"
+    ],
+    jobSteps: [
+      "Look at 3 job postings (don't apply, just look)",
+      "Update 1 line on my resume",
+      "Practice saying my name out loud (interview prep)",
+      "Find 1 local business that might hire",
+      "Ask 1 person if they know of any jobs",
+      "Fill out 1 application (even if it's not perfect)",
+      "Call 1 place to ask if they're hiring",
+      "Write a 2-sentence cover letter draft",
+      "Research 1 company I'm interested in"
+    ],
+    careerSteps: [
+      "Watch 1 YouTube video about my field",
+      "Read 1 article about career stuff",
+      "Spend 10 minutes on LinkedIn just browsing",
+      "Research 1 skill I want to learn",
+      "Look up 1 company I think is cool",
+      "Write 1 paragraph about what I want to do",
+      "Ask 1 person about their job",
+      "Take 1 online quiz or assessment",
+      "Join 1 professional group or forum"
+    ],
+    focusOptions: [
+      "Mental health day - be extra gentle",
+      "Job hunting focus - applications and searching", 
+      "Career building - learning and networking",
+      "Mixed day - a little of everything",
+      "Low energy day - just the basics",
+      "Administrative day - life stuff and planning",
+      "Social/family day - connecting with others",
+      "Creative day - make or learn something",
+      "Health day - appointments and self-care"
+    ]
+  });
+
+  const [newOptionInputs, setNewOptionInputs] = useState({
+    mentalHealth: '',
+    jobSteps: '',
+    careerSteps: '',
+    focusOptions: '',
+    newHabit: ''
+  });
+  
+  // Week planning
+  const [weekPlan, setWeekPlan] = useState({
+    monday: { focus: '', toDo: '', reminders: '' },
+    tuesday: { focus: '', toDo: '', reminders: '' },
+    wednesday: { focus: '', toDo: '', reminders: '' },
+    thursday: { focus: '', toDo: '', reminders: '' },
+    friday: { focus: '', toDo: '', reminders: '' },
+    saturday: { focus: '', toDo: '', reminders: '' },
+    sunday: { focus: '', toDo: '', reminders: '' }
+  });
+
+  // Update time every minute
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Timer countdown
+  useEffect(() => {
+    let interval = null;
+    if (timer.isRunning) {
+      interval = setInterval(() => {
+        setTimer(prev => {
+          if (prev.seconds > 0) {
+            return { ...prev, seconds: prev.seconds - 1 };
+          } else if (prev.minutes > 0) {
+            return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
+          } else {
+            // Timer finished
+            return { 
+              ...prev, 
+              isRunning: false,
+              minutes: prev.mode === 'work' ? 5 : 25,
+              seconds: 0,
+              mode: prev.mode === 'work' ? 'break' : 'work'
+            };
+          }
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer.isRunning]);
+
+  // Fullscreen timer escape key handler
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && isFullscreenTimer) {
+        setIsFullscreenTimer(false);
+      }
+    };
+    
+    if (isFullscreenTimer) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'auto';
+    };
+  }, [isFullscreenTimer]);
+
+  const mentalHealthOptions = customOptions.mentalHealth;
+  const jobStepOptions = customOptions.jobSteps;
+  const careerStepOptions = customOptions.careerSteps;
+  const focusOptions = customOptions.focusOptions;
+
+  const toggleTask = (taskKey) => {
+    setTasks(prev => {
+      const newTasks = {
+        ...prev,
+        [taskKey]: !prev[taskKey]
+      };
+      
+      // Trigger celebration when checking off a task
+      if (!prev[taskKey]) {
+        const celebrations = [
+          "You did it! 🎉 That's something to be proud of!",
+          "Look at you go! 💪 Every step counts!",
+          "Yes! 🌟 You're building momentum!",
+          "Amazing! ✨ You're taking care of yourself!",
+          "Beautiful work! 🌈 Keep being kind to yourself!",
+          "You're doing great! 💚 This is progress!"
+        ];
+        triggerCelebration(celebrations[Math.floor(Math.random() * celebrations.length)]);
+      }
+      
+      return newTasks;
+    });
+  };
+
+  const updateWeekPlan = (day, field, value) => {
+    const updatedDayPlan = {
+      ...weekPlan[day],
+      [field]: value
+    };
+
+    const updatedWeekPlan = {
+      ...weekPlan,
+      [day]: updatedDayPlan
+    };
+
+    setWeekPlan(updatedWeekPlan);
+
+    // Save to multi-week storage
+    setAllWeekPlans(prev => ({
+      ...prev,
+      [selectedWeekForPlanning]: updatedWeekPlan
+    }));
+  };
+
+  const toggleHabit = (habitKey) => {
+    setHabits(prev => ({
+      ...prev,
+      [habitKey]: {
+        ...prev[habitKey],
+        todayDone: !prev[habitKey].todayDone,
+        streak: !prev[habitKey].todayDone ? prev[habitKey].streak + 1 : Math.max(0, prev[habitKey].streak - 1)
+      }
+    }));
+  };
+
+  const startTimer = () => {
+    setTimer(prev => ({ ...prev, isRunning: true }));
+  };
+
+  const pauseTimer = () => {
+    setTimer(prev => ({ ...prev, isRunning: false }));
+  };
+
+  const resetTimer = () => {
+    setTimer({
+      minutes: 25,
+      seconds: 0,
+      isRunning: false,
+      mode: 'work'
+    });
+  };
+
+  const getDayName = () => {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const today = new Date().getDay();
+    return days[today];
+  };
+
+  const getTodaysPlan = () => {
+    const today = getDayName();
+    const currentWeekStart = getCurrentWeekStart();
+    const currentWeekPlan = allWeekPlans[currentWeekStart];
+    
+    if (currentWeekPlan) {
+      return currentWeekPlan[today];
+    }
+    
+    // Fallback to current weekPlan if it's the selected week
+    if (selectedWeekForPlanning === currentWeekStart) {
+      return weekPlan[today];
+    }
+    
+    return { focus: '', toDo: '', reminders: '' };
+  };
+
+  const resetDay = () => {
+    // Save today's accomplishments before resetting
+    saveDailyData();
+    
+    const completedCount = Object.values(tasks).filter(Boolean).length;
+    if (completedCount >= 4) {
+      setDaysThisWeek(prev => Math.min(prev + 1, 7));
+    }
+    
+    setTasks({
+      wakeUp: false,
+      basicCare: false,
+      eatSomething: false,
+      mentalHealth: false,
+      jobStep: false,
+      careerStep: false,
+      celebrate: false
+    });
+    
+    setSelectedMentalHealth('');
+    setSelectedJobStep('');
+    setSelectedCareerStep('');
+    
+    // Reset daily reflections for new day
+    setDailyReflection({
+      gratitude: { text: '', isSubmitted: false, showTwinkle: false },
+      affirmation: { text: '', isSubmitted: false, showTwinkle: false }
+    });
+    
+    // Reset habits for new day
+    setHabits(prev => {
+      const newHabits = {};
+      Object.keys(prev).forEach(key => {
+        newHabits[key] = {
+          ...prev[key],
+          todayDone: false
+        };
+      });
+      return newHabits;
+    });
+  };
+
+  const completedCount = Object.values(tasks).filter(Boolean).length;
+  const progressPercent = Math.round((completedCount / 7) * 100);
+  const habitCount = Object.values(habits).filter(h => h.todayDone).length;
+  
+  const getEncouragement = () => {
+    if (completedCount === 0) return "It's okay to start slow. Pick the easiest thing first.";
+    if (completedCount === 1) return "You started! That's the hardest part. 💪";
+    if (completedCount === 2) return "Building momentum! You're doing this.";
+    if (completedCount === 3) return "Look at you go! This is how change happens.";
+    if (completedCount >= 4) return "You're crushing it today! 🎉 This is success.";
+  };
+
+  const formatTime = (mins, secs) => {
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const addOption = (category) => {
+    const newOption = newOptionInputs[category].trim();
+    if (newOption && !customOptions[category].includes(newOption)) {
+      setCustomOptions(prev => ({
+        ...prev,
+        [category]: [...prev[category], newOption]
+      }));
+      setNewOptionInputs(prev => ({
+        ...prev,
+        [category]: ''
+      }));
+    }
+  };
+
+  const removeOption = (category, index) => {
+    setCustomOptions(prev => ({
+      ...prev,
+      [category]: prev[category].filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleNewOptionChange = (category, value) => {
+    setNewOptionInputs(prev => ({
+      ...prev,
+      [category]: value
+    }));
+  };
+
+  const addHabit = () => {
+    const newHabitName = newOptionInputs.newHabit.trim();
+    if (newHabitName) {
+      const newHabitKey = `habit_${Date.now()}`;
+      setHabits(prev => ({
+        ...prev,
+        [newHabitKey]: {
+          name: newHabitName,
+          streak: 0,
+          todayDone: false
+        }
+      }));
+      setNewOptionInputs(prev => ({
+        ...prev,
+        newHabit: ''
+      }));
+    }
+  };
+
+  const removeHabit = (habitKey) => {
+    setHabits(prev => {
+      const newHabits = { ...prev };
+      delete newHabits[habitKey];
+      return newHabits;
+    });
+  };
+
+  const updateHabitName = (habitKey, newName) => {
+    if (newName.trim()) {
+      setHabits(prev => ({
+        ...prev,
+        [habitKey]: {
+          ...prev[habitKey],
+          name: newName.trim()
+        }
+      }));
+    }
+  };
+
+  const submitReflection = (type) => {
+    const text = dailyReflection[type].text.trim();
+    if (text) {
+      setDailyReflection(prev => ({
+        ...prev,
+        [type]: {
+          ...prev[type],
+          showTwinkle: true,
+          isSubmitted: true
+        }
+      }));
+      
+      // Remove twinkle effect after animation
+      setTimeout(() => {
+        setDailyReflection(prev => ({
+          ...prev,
+          [type]: {
+            ...prev[type],
+            showTwinkle: false
+          }
+        }));
+      }, 1500);
+    }
+  };
+
+  const updateReflectionText = (type, text) => {
+    setDailyReflection(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        text: text
+      }
+    }));
+  };
+
+  // Helper function to get week start date
+  function getCurrentWeekStart() {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    return getDateString(startOfWeek);
+  }
+
+  function getWeekStart(date) {
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - date.getDay());
+    return getDateString(startOfWeek);
+  }
+
+  // Load the selected week's plan when week changes
+  useEffect(() => {
+    const weekKey = selectedWeekForPlanning;
+    if (allWeekPlans[weekKey]) {
+      setWeekPlan(allWeekPlans[weekKey]);
+    } else {
+      // Initialize empty week plan
+      setWeekPlan({
+        monday: { focus: '', toDo: '', reminders: '' },
+        tuesday: { focus: '', toDo: '', reminders: '' },
+        wednesday: { focus: '', toDo: '', reminders: '' },
+        thursday: { focus: '', toDo: '', reminders: '' },
+        friday: { focus: '', toDo: '', reminders: '' },
+        saturday: { focus: '', toDo: '', reminders: '' },
+        sunday: { focus: '', toDo: '', reminders: '' }
+      });
+    }
+  }, [selectedWeekForPlanning, allWeekPlans]);
+
+  // Calendar helper functions
+  const getDateString = (date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  const getMonthCalendar = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    
+    // First day of the month
+    const firstDay = new Date(year, month, 1);
+    // Last day of the month
+    const lastDay = new Date(year, month + 1, 0);
+    
+    // Start from Sunday of the week containing the first day
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    // End on Saturday of the week containing the last day
+    const endDate = new Date(lastDay);
+    endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()));
+    
+    const days = [];
+    const current = new Date(startDate);
+    
+    while (current <= endDate) {
+      days.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return days;
+  };
+
+  const getCurrentWeekDates = () => {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    
+    const weekDates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + i);
+      weekDates.push(getDateString(date));
+    }
+    return weekDates;
+  };
+
+  const isCurrentWeek = (date) => {
+    const currentWeekDates = getCurrentWeekDates();
+    return currentWeekDates.includes(getDateString(date));
+  };
+
+  const getDayNameFromDate = (date) => {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return days[date.getDay()];
+  };
+
+  const getPlanForDate = (date) => {
+    // Get the week start date for this date
+    const weekStart = getWeekStart(date);
+    
+    // Check if we have planning data for this week
+    const weekPlanData = allWeekPlans[weekStart];
+    if (!weekPlanData) {
+      return null;
+    }
+    
+    const dayName = getDayNameFromDate(date);
+    return weekPlanData[dayName];
+  };
+
+  const saveDailyData = () => {
+    const today = getDateString(new Date());
+    const completedTasks = Object.entries(tasks)
+      .filter(([_, completed]) => completed)
+      .map(([task, _]) => task);
+    
+    const completedHabits = Object.entries(habits)
+      .filter(([_, habit]) => habit.todayDone)
+      .map(([_, habit]) => habit.name);
+
+    setMonthlyData(prev => ({
+      ...prev,
+      [today]: {
+        tasks: completedTasks,
+        gratitude: dailyReflection.gratitude.isSubmitted ? dailyReflection.gratitude.text : null,
+        affirmation: dailyReflection.affirmation.isSubmitted ? dailyReflection.affirmation.text : null,
+        habits: completedHabits,
+        taskCount: completedTasks.length,
+        habitCount: completedHabits.length
+      }
+    }));
+  };
+
+  // Week navigation helpers
+  const getWeekDateRange = (weekStartString) => {
+    const startDate = new Date(weekStartString);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+    return { startDate, endDate };
+  };
+
+  const navigateWeek = (direction) => {
+    const currentStart = new Date(selectedWeekForPlanning);
+    const newStart = new Date(currentStart);
+    newStart.setDate(currentStart.getDate() + (direction * 7));
+    setSelectedWeekForPlanning(getDateString(newStart));
+  };
+
+  const isCurrentWeekSelected = () => {
+    return selectedWeekForPlanning === getCurrentWeekStart();
+  };
+
+  // Energy-based task suggestions
+  const getTasksForEnergy = (energy) => {
+    const baseTasks = [
+      { key: 'wakeUp', text: 'Got out of bed (you did it!)' },
+      { key: 'basicCare', text: 'Washed face OR brushed teeth (pick one)' },
+      { key: 'eatSomething', text: 'Ate anything (even a cracker counts)' }
+    ];
+
+    if (energy === 'survival') {
+      return [
+        { key: 'wakeUp', text: 'I exist today (that\'s enough)' },
+        { key: 'basicCare', text: 'I did one tiny thing for my body' },
+        { key: 'eatSomething', text: 'I nourished myself somehow' }
+      ];
+    }
+
+    if (energy === 'low') {
+      return [
+        { key: 'wakeUp', text: 'I made it out of bed (proud of you)' },
+        { key: 'basicCare', text: 'I was gentle with my body today' },
+        { key: 'eatSomething', text: 'I ate something that felt good' }
+      ];
+    }
+
+    return baseTasks;
+  };
+
+  const getMentalHealthForEnergy = (energy) => {
+    if (energy === 'survival') {
+      return [
+        "Just breathe for 30 seconds",
+        "Look out a window",
+        "Drink a sip of water",
+        "Tell yourself 'I'm doing my best'",
+        "Just exist - that's enough today"
+      ];
+    }
+
+    if (energy === 'low') {
+      return [
+        "Take 3 deep breaths",
+        "Step outside for 1 minute",
+        "Listen to one comforting song",
+        "Wrap yourself in something soft",
+        "Text yourself something kind"
+      ];
+    }
+
+    return customOptions.mentalHealth;
+  };
+
+  // Celebration system
+  const triggerCelebration = (message) => {
+    setCelebrationMessage(message);
+    setShowCelebration(true);
+    setTimeout(() => setShowCelebration(false), 3000);
+  };
+
+  const getRandomFutureMessage = () => {
+    return futureMessages[Math.floor(Math.random() * futureMessages.length)];
+  };
+
+  const addFutureMessage = () => {
+    if (newFutureMessage.trim()) {
+      setFutureMessages(prev => [...prev, newFutureMessage.trim()]);
+      setNewFutureMessage('');
+      triggerCelebration("Message saved for future you! 💚");
+    }
+  };
+
+  return (
+    <>
+      <style>{`
+        :root {
+          /* Colors */
+          --sage-primary: #7a8c78;
+          --sage-secondary: #9db09a;
+          --sage-dark: #3e4a3e;
+          --sage-medium: #5a6758;
+          --sage-light: #6b7969;
+          --sage-muted: #8a9688;
+          
+          --brown-primary: #8b7355;
+          --brown-secondary: #a0967d;
+          --brown-light: #d4cfc7;
+          
+          --accent-blue: #7a9cb8;
+          --accent-purple: #9a7db8;
+          --accent-orange: #b89a7d;
+          
+          --bg-main: #f5f4f2;
+          --bg-card: white;
+          --bg-highlighted: #faf9f7;
+          --bg-subtle: #f8f9f8;
+          --bg-inactive: #f2f0ed;
+          
+          --border-primary: #e1e4e1;
+          --border-secondary: #e8ebe8;
+          --border-brown: #e8e6e2;
+          --border-input: #d9ddd9;
+          
+          /* Typography */
+          --font-family: 'Avenir Next', 'Avenir', 'Helvetica Neue', 'Segoe UI', 'Trebuchet MS', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+          --font-size-xl: 24px;
+          --font-size-lg: 16px;
+          --font-size-md: 14px;
+          --font-size-sm: 13px;
+          --font-size-xs: 12px;
+          --font-size-xxs: 11px;
+          
+          --font-weight-normal: 400;
+          --font-weight-medium: 500;
+          --font-weight-semibold: 600;
+          --font-weight-bold: 700;
+          
+          /* Spacing */
+          --spacing-xs: 6px;
+          --spacing-sm: 10px;
+          --spacing-md: 12px;
+          --spacing-lg: 16px;
+          --spacing-xl: 18px;
+          --spacing-xxl: 20px;
+          
+          /* Border Radius */
+          --radius-sm: 4px;
+          --radius-md: 8px;
+          --radius-lg: 12px;
+          --radius-xl: 15px;
+          --radius-pill: 20px;
+          
+          /* Shadows */
+          --shadow-card: 0 1px 3px rgba(0,0,0,0.06);
+          --shadow-elevated: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .app-container {
+          max-width: min(1200px, 95vw);
+          margin: 0 auto;
+          padding: var(--spacing-xxl);
+          background-color: var(--bg-main);
+          border-radius: var(--radius-xl);
+          font-family: var(--font-family);
+          border: 1px solid var(--border-primary);
+          min-height: 600px;
+        }
+        
+        @media (max-width: 768px) {
+          .app-container {
+            max-width: 500px;
+            padding: var(--spacing-lg);
+          }
+        }
+        
+        .header {
+          text-align: center;
+          margin-bottom: var(--spacing-xxl);
+          position: relative;
+        }
+        
+        .settings-btn {
+          position: absolute;
+          top: 0;
+          right: 0;
+          background-color: transparent;
+          border: 2px solid var(--sage-muted);
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          color: var(--sage-medium);
+        }
+        
+        .settings-btn::before {
+          content: '';
+          width: 12px;
+          height: 12px;
+          border: 2px solid currentColor;
+          border-radius: 50%;
+          position: relative;
+        }
+        
+        .settings-btn::after {
+          content: '';
+          position: absolute;
+          width: 20px;
+          height: 20px;
+          background-image: 
+            linear-gradient(currentColor, currentColor),
+            linear-gradient(currentColor, currentColor),
+            linear-gradient(currentColor, currentColor),
+            linear-gradient(currentColor, currentColor),
+            linear-gradient(currentColor, currentColor),
+            linear-gradient(currentColor, currentColor),
+            linear-gradient(currentColor, currentColor),
+            linear-gradient(currentColor, currentColor);
+          background-size: 1px 4px, 4px 1px, 1px 4px, 4px 1px, 1px 4px, 4px 1px, 1px 4px, 4px 1px;
+          background-position: 
+            center top,
+            right center,
+            center bottom,
+            left center,
+            85% 15%,
+            85% 85%,
+            15% 85%,
+            15% 15%;
+          background-repeat: no-repeat;
+        }
+        
+        .settings-btn:hover {
+          background-color: var(--sage-primary);
+          border-color: var(--sage-primary);
+          color: white;
+          transform: rotate(90deg) scale(1.1);
+          box-shadow: var(--shadow-card);
+        }
+        
+        .settings-btn.active {
+          background-color: var(--sage-primary);
+          border-color: var(--sage-primary);
+          color: white;
+          transform: rotate(90deg);
+        }
+        
+        .title {
+          color: var(--sage-dark);
+          margin-bottom: 5px;
+          font-size: var(--font-size-xl);
+          font-weight: var(--font-weight-semibold);
+        }
+        
+        .subtitle {
+          color: var(--sage-light);
+          font-size: var(--font-size-md);
+          margin: 0 0 15px 0;
+        }
+        
+        .timestamp {
+          font-size: var(--font-size-xs);
+          margin-top: 2px;
+          color: var(--sage-muted);
+        }
+        
+        .nav-tabs {
+          display: flex;
+          gap: var(--spacing-xs);
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+        
+        .nav-tab {
+          padding: var(--spacing-md);
+          border-radius: var(--radius-pill);
+          cursor: pointer;
+          font-size: var(--font-size-xs);
+          font-weight: var(--font-weight-medium);
+          transition: all 0.3s ease;
+          border: none;
+          position: relative;
+        }
+        
+        .nav-tab:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .nav-tab.active {
+          background: linear-gradient(135deg, var(--sage-primary) 0%, var(--sage-secondary) 100%);
+          color: white;
+          box-shadow: var(--shadow-card);
+        }
+        
+        .nav-tab.inactive {
+          background-color: var(--bg-inactive);
+          color: var(--sage-medium);
+          border: 1px solid var(--brown-light);
+        }
+        
+        .nav-tab.inactive:hover {
+          background-color: var(--bg-card);
+          border-color: var(--sage-primary);
+        }
+        
+        .card {
+          background-color: var(--bg-card);
+          padding: var(--spacing-xl);
+          border-radius: var(--radius-lg);
+          margin-bottom: var(--spacing-lg);
+          border: 1px solid var(--border-secondary);
+          box-shadow: var(--shadow-card);
+          transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+          box-shadow: var(--shadow-elevated);
+          transform: translateY(-1px);
+        }
+        
+        .card.highlighted {
+          background-color: var(--bg-highlighted);
+          border: 1px solid var(--border-brown);
+        }
+        
+        .card.success {
+          border: 2px solid var(--sage-primary);
+          box-shadow: var(--shadow-elevated);
+          position: relative;
+        }
+        
+        .card.success::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: linear-gradient(90deg, var(--sage-primary), var(--sage-secondary));
+          border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        }
+        
+        .card.survival {
+          border-left: 4px solid var(--brown-primary);
+        }
+        
+        .card.mental-health {
+          border-left: 4px solid var(--accent-blue);
+        }
+        
+        .card.job-search {
+          border-left: 4px solid var(--sage-primary);
+        }
+        
+        .card.career {
+          border-left: 4px solid var(--accent-purple);
+        }
+        
+        .card.celebrate {
+          border-left: 4px solid var(--accent-orange);
+          background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-highlighted) 100%);
+        }
+        
+        .card-title {
+          color: var(--sage-dark);
+          margin-bottom: 14px;
+          font-size: var(--font-size-lg);
+          font-weight: var(--font-weight-semibold);
+        }
+        
+        .text-center {
+          text-align: center;
+        }
+        
+        .text-primary {
+          color: var(--sage-dark);
+        }
+        
+        .text-secondary {
+          color: var(--sage-medium);
+        }
+        
+        .text-muted {
+          color: var(--sage-light);
+        }
+        
+        .text-success {
+          color: var(--sage-primary);
+        }
+        
+        .btn {
+          border: none;
+          padding: var(--spacing-sm) var(--spacing-xl);
+          border-radius: var(--radius-pill);
+          cursor: pointer;
+          font-size: var(--font-size-sm);
+          font-weight: var(--font-weight-medium);
+          transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        .btn-primary {
+          background-color: var(--sage-primary);
+          color: white;
+        }
+        
+        .btn-primary:hover {
+          background-color: var(--sage-secondary);
+        }
+        
+        .btn-secondary {
+          background-color: var(--brown-primary);
+          color: white;
+        }
+        
+        .btn-secondary:hover {
+          background-color: var(--brown-secondary);
+        }
+        
+        .btn-tertiary {
+          background-color: transparent;
+          color: var(--sage-medium);
+          border: 1.5px solid var(--sage-muted);
+        }
+        
+        .btn-tertiary:hover {
+          background-color: var(--sage-muted);
+          border-color: var(--sage-medium);
+          color: white;
+          transform: translateY(-1px);
+        }
+        
+        .progress-bar {
+          width: 100%;
+          height: 8px;
+          background-color: var(--border-brown);
+          border-radius: var(--radius-sm);
+          margin-bottom: 8px;
+          overflow: hidden;
+        }
+        
+        .progress-fill {
+          height: 100%;
+          border-radius: var(--radius-sm);
+          transition: all 0.5s ease;
+        }
+        
+        .progress-fill.success {
+          background: linear-gradient(90deg, var(--sage-primary), var(--sage-secondary));
+          box-shadow: 0 2px 8px rgba(122, 140, 120, 0.3);
+        }
+        
+        .progress-fill.in-progress {
+          background: linear-gradient(90deg, var(--brown-secondary), var(--brown-primary));
+        }
+        
+        .week-circles {
+          display: flex;
+          gap: var(--spacing-xs);
+          justify-content: center;
+          margin-bottom: 14px;
+        }
+        
+        .week-circle {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: var(--font-size-xs);
+          font-weight: var(--font-weight-semibold);
+        }
+        
+        .week-circle.completed {
+          background: linear-gradient(135deg, var(--sage-primary), var(--sage-secondary));
+          color: white;
+          box-shadow: 0 2px 6px rgba(122, 140, 120, 0.3);
+          transform: scale(1);
+          transition: transform 0.2s ease;
+        }
+        
+        .week-circle.completed:hover {
+          transform: scale(1.1);
+        }
+        
+        .week-circle.incomplete {
+          background-color: var(--border-brown);
+          color: var(--brown-secondary);
+          border: 2px solid var(--bg-inactive);
+        }
+        
+        .checkbox-item {
+          margin-bottom: var(--spacing-sm);
+        }
+        
+        .checkbox-label {
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+          padding: var(--spacing-xs);
+          border-radius: var(--radius-md);
+          transition: all 0.2s ease;
+        }
+        
+        .checkbox-label:hover {
+          background-color: var(--bg-subtle);
+        }
+        
+        .checkbox {
+          margin-right: var(--spacing-md);
+          transform: scale(1.2);
+          accent-color: var(--sage-primary);
+        }
+        
+        .checkbox-text {
+          font-size: var(--font-size-md);
+        }
+        
+        .checkbox-text.completed {
+          color: var(--sage-primary);
+          text-decoration: line-through;
+        }
+        
+        .checkbox-text.incomplete {
+          color: var(--sage-medium);
+        }
+        
+        .select, .textarea {
+          width: 100%;
+          padding: var(--spacing-md);
+          border: 2px solid var(--border-input);
+          border-radius: var(--radius-md);
+          font-size: var(--font-size-md);
+          background-color: var(--bg-card);
+          font-family: var(--font-family);
+          transition: all 0.3s ease;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7969' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+          background-position: right 12px center;
+          background-repeat: no-repeat;
+          background-size: 16px;
+          padding-right: 40px;
+        }
+        
+        .select:focus, .textarea:focus {
+          outline: none;
+          border-color: var(--sage-primary);
+          box-shadow: 0 0 0 3px rgba(122, 140, 120, 0.1);
+          background-color: var(--bg-subtle);
+        }
+        
+        .select:hover {
+          border-color: var(--sage-secondary);
+          background-color: var(--bg-subtle);
+        }
+        
+        .select {
+          margin-bottom: var(--spacing-sm);
+          cursor: pointer;
+        }
+        
+        .calendar-grid {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          gap: 8px;
+          margin-bottom: var(--spacing-xxl);
+        }
+        
+        .calendar-day {
+          background-color: var(--bg-card);
+          padding: 8px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-secondary);
+          min-height: 140px;
+          font-size: var(--font-size-xxs);
+        }
+        
+        .calendar-day.today {
+          background-color: var(--bg-highlighted);
+          border: 2px solid var(--sage-primary);
+        }
+        
+        .calendar-day-header {
+          font-weight: var(--font-weight-semibold);
+          text-align: center;
+          margin-bottom: 8px;
+          color: var(--sage-medium);
+          font-size: var(--font-size-xxs);
+          border-bottom: 1px solid var(--border-secondary);
+          padding-bottom: 4px;
+        }
+        
+        .calendar-day-header.today {
+          color: var(--sage-dark);
+        }
+        
+        .calendar-focus {
+          background-color: var(--bg-inactive);
+          padding: 3px 5px;
+          border-radius: var(--radius-sm);
+          margin-bottom: 5px;
+          font-size: 8px;
+          color: var(--sage-medium);
+          font-weight: var(--font-weight-medium);
+        }
+        
+        .calendar-section {
+          margin-bottom: 5px;
+        }
+        
+        .calendar-section-title {
+          font-size: 7px;
+          color: var(--sage-primary);
+          font-weight: var(--font-weight-semibold);
+          margin-bottom: 2px;
+          text-transform: uppercase;
+        }
+        
+        .calendar-section-content {
+          font-size: 8px;
+          color: var(--sage-medium);
+          line-height: 1.3;
+          word-break: break-word;
+        }
+        
+        .calendar-reminders .calendar-section-content {
+          font-style: italic;
+          color: var(--sage-light);
+        }
+        
+        .calendar-empty {
+          color: var(--sage-muted);
+          font-size: 9px;
+          text-align: center;
+          margin-top: 30px;
+          font-style: italic;
+        }
+        
+        .today-summary {
+          background: linear-gradient(135deg, var(--bg-highlighted) 0%, var(--bg-subtle) 100%);
+          padding: 14px;
+          border-radius: var(--radius-md);
+          margin-bottom: var(--spacing-lg);
+          border: 1px solid var(--border-brown);
+          position: relative;
+        }
+        
+        .today-summary::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: linear-gradient(90deg, var(--accent-orange), var(--brown-primary));
+          border-radius: var(--radius-md) var(--radius-md) 0 0;
+        }
+        
+        .today-summary-title {
+          font-weight: var(--font-weight-semibold);
+          color: var(--sage-dark);
+          margin-bottom: 8px;
+          font-size: var(--font-size-md);
+        }
+        
+        .today-summary-item {
+          margin: 0 0 6px 0;
+          font-size: var(--font-size-sm);
+          color: var(--sage-medium);
+        }
+        
+        .today-summary-reminders {
+          margin: 6px 0 0 0;
+          font-size: var(--font-size-sm);
+          color: var(--sage-light);
+          font-style: italic;
+        }
+        
+        .form-group {
+          margin-bottom: 14px;
+        }
+        
+        .form-label {
+          display: block;
+          font-size: var(--font-size-xs);
+          color: var(--sage-light);
+          margin-bottom: 6px;
+          font-weight: var(--font-weight-medium);
+        }
+        
+        .textarea {
+          min-height: 60px;
+          resize: vertical;
+          background-image: none;
+          padding-right: var(--spacing-md);
+        }
+        
+        .options-list {
+          background-color: var(--bg-subtle);
+          border-radius: var(--radius-md);
+          padding: var(--spacing-md);
+          margin-bottom: var(--spacing-md);
+        }
+        
+        .option-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: var(--spacing-xs) var(--spacing-sm);
+          margin-bottom: var(--spacing-xs);
+          background-color: var(--bg-card);
+          border-radius: var(--radius-sm);
+          font-size: var(--font-size-sm);
+        }
+        
+        .option-item:last-child {
+          margin-bottom: 0;
+        }
+        
+        .remove-btn {
+          background-color: transparent;
+          border: none;
+          color: var(--sage-muted);
+          cursor: pointer;
+          padding: 2px 6px;
+          border-radius: var(--radius-sm);
+          font-size: var(--font-size-xs);
+          transition: all 0.2s ease;
+        }
+        
+        .remove-btn:hover {
+          background-color: var(--brown-light);
+          color: var(--brown-primary);
+        }
+        
+        .add-option-container {
+          display: flex;
+          gap: var(--spacing-xs);
+          margin-top: var(--spacing-sm);
+        }
+        
+        .add-option-input {
+          flex: 1;
+          padding: var(--spacing-xs) var(--spacing-sm);
+          border: 1px solid var(--border-input);
+          border-radius: var(--radius-sm);
+          font-size: var(--font-size-sm);
+          font-family: var(--font-family);
+        }
+        
+        .add-option-input:focus {
+          outline: none;
+          border-color: var(--sage-primary);
+        }
+        
+        .btn-small {
+          padding: var(--spacing-xs) var(--spacing-sm);
+          font-size: var(--font-size-xs);
+          border-radius: var(--radius-sm);
+        }
+        
+        .category-section {
+          margin-bottom: var(--spacing-xxl);
+        }
+        
+        .category-title {
+          color: var(--sage-dark);
+          font-size: var(--font-size-lg);
+          font-weight: var(--font-weight-semibold);
+          margin-bottom: var(--spacing-sm);
+          padding-left: var(--spacing-xs);
+        }
+        
+        .habit-item-editable {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: var(--spacing-xs) var(--spacing-sm);
+          margin-bottom: var(--spacing-xs);
+          background-color: var(--bg-card);
+          border-radius: var(--spacing-sm);
+          border: 1px solid var(--border-input);
+        }
+        
+        .habit-name-input {
+          flex: 1;
+          border: none;
+          background: transparent;
+          font-size: var(--font-size-sm);
+          font-family: var(--font-family);
+          color: var(--sage-dark);
+          padding: 2px 4px;
+          border-radius: var(--radius-sm);
+        }
+        
+        .habit-name-input:focus {
+          outline: none;
+          background-color: var(--bg-subtle);
+        }
+        
+        .habit-actions {
+          display: flex;
+          gap: var(--spacing-xs);
+          align-items: center;
+        }
+        
+        .habit-streak {
+          font-size: var(--font-size-xs);
+          color: var(--sage-muted);
+          margin-right: var(--spacing-xs);
+        }
+        
+        .reflection-section {
+          background: linear-gradient(135deg, var(--bg-highlighted) 0%, var(--bg-subtle) 100%);
+          padding: var(--spacing-lg);
+          border-radius: var(--radius-lg);
+          margin-bottom: var(--spacing-lg);
+          border: 1px solid var(--border-brown);
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .reflection-input-container {
+          position: relative;
+        }
+        
+        .reflection-input {
+          width: 100%;
+          padding: var(--spacing-md);
+          border: 2px solid var(--border-input);
+          border-radius: var(--radius-md);
+          font-size: var(--font-size-md);
+          font-family: var(--font-family);
+          background-color: var(--bg-card);
+          min-height: 60px;
+          resize: vertical;
+          transition: all 0.3s ease;
+        }
+        
+        .reflection-input:focus {
+          outline: none;
+          border-color: var(--sage-primary);
+          box-shadow: 0 0 0 3px rgba(122, 140, 120, 0.1);
+        }
+        
+        .reflection-submitted {
+          background-color: transparent;
+          border: none;
+          padding: var(--spacing-md);
+          font-size: var(--font-size-md);
+          font-family: var(--font-family);
+          color: var(--sage-dark);
+          font-style: italic;
+          line-height: 1.5;
+        }
+        
+        .reflection-title {
+          color: var(--sage-dark);
+          font-size: var(--font-size-lg);
+          font-weight: var(--font-weight-semibold);
+          margin-bottom: var(--spacing-sm);
+          text-align: center;
+        }
+        
+        .submit-reflection-btn {
+          margin-top: var(--spacing-sm);
+          background: linear-gradient(135deg, var(--sage-primary), var(--sage-secondary));
+          color: white;
+          border: none;
+          padding: var(--spacing-sm) var(--spacing-lg);
+          border-radius: var(--radius-pill);
+          font-size: var(--font-size-sm);
+          font-weight: var(--font-weight-medium);
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        
+        .submit-reflection-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(122, 140, 120, 0.3);
+        }
+        
+        .submit-reflection-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+        }
+        
+        .twinkle-effect {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          pointer-events: none;
+          border-radius: var(--radius-lg);
+        }
+        
+        .twinkle-effect::before,
+        .twinkle-effect::after {
+          content: '✨';
+          position: absolute;
+          font-size: 20px;
+          animation: twinkle 1.5s ease-out;
+        }
+        
+        .twinkle-effect::before {
+          top: 20%;
+          left: 15%;
+          animation-delay: 0s;
+        }
+        
+        .twinkle-effect::after {
+          top: 60%;
+          right: 20%;
+          animation-delay: 0.3s;
+        }
+        
+        @keyframes twinkle {
+          0% {
+            opacity: 0;
+            transform: scale(0.3) rotate(0deg);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.2) rotate(180deg);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(0.3) rotate(360deg);
+          }
+        }
+        
+        .twinkle-stars {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          background-image: 
+            radial-gradient(2px 2px at 25% 30%, #ffd700, transparent),
+            radial-gradient(2px 2px at 70% 20%, #87ceeb, transparent),
+            radial-gradient(1px 1px at 80% 70%, #ffd700, transparent),
+            radial-gradient(1px 1px at 30% 80%, #87ceeb, transparent),
+            radial-gradient(2px 2px at 60% 50%, #ffd700, transparent);
+          background-repeat: no-repeat;
+          animation: sparkle 1.5s ease-out;
+          pointer-events: none;
+        }
+        
+        @keyframes sparkle {
+          0% { opacity: 0; }
+          50% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        
+        .monthly-calendar {
+          background-color: var(--bg-card);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-lg);
+          border: 1px solid var(--border-secondary);
+          box-shadow: var(--shadow-card);
+        }
+        
+        .calendar-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: var(--spacing-lg);
+        }
+        
+        .month-nav-btn {
+          background-color: var(--bg-inactive);
+          border: 1px solid var(--border-input);
+          border-radius: var(--radius-sm);
+          padding: var(--spacing-xs) var(--spacing-sm);
+          cursor: pointer;
+          font-size: var(--font-size-sm);
+          color: var(--sage-medium);
+          transition: all 0.2s ease;
+        }
+        
+        .month-nav-btn:hover {
+          background-color: var(--sage-primary);
+          border-color: var(--sage-primary);
+          color: white;
+        }
+        
+        .month-title {
+          font-size: var(--font-size-lg);
+          font-weight: var(--font-weight-semibold);
+          color: var(--sage-dark);
+        }
+        
+        .calendar-grid-month {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          gap: 2px;
+          margin-bottom: var(--spacing-md);
+        }
+        
+        .calendar-weekday-header {
+          text-align: center;
+          font-size: var(--font-size-xs);
+          font-weight: var(--font-weight-semibold);
+          color: var(--sage-muted);
+          padding: var(--spacing-xs);
+          background-color: var(--bg-subtle);
+        }
+        
+        .calendar-day-month {
+          aspect-ratio: 1;
+          background-color: var(--bg-card);
+          border: 1px solid var(--border-input);
+          border-radius: var(--radius-sm);
+          padding: 4px;
+          font-size: var(--font-size-xs);
+          position: relative;
+          min-height: 80px;
+        }
+        
+        .calendar-day-month.other-month {
+          background-color: var(--bg-inactive);
+          color: var(--sage-muted);
+        }
+        
+        .calendar-day-month.today {
+          border: 2px solid var(--sage-primary);
+          background-color: var(--bg-subtle);
+        }
+        
+        .calendar-day-month.current-week {
+          background-color: var(--bg-highlighted);
+          border-color: var(--brown-light);
+        }
+        
+        .calendar-day-month.current-week.today {
+          border: 2px solid var(--sage-primary);
+        }
+        
+        .calendar-day-number {
+          font-weight: var(--font-weight-semibold);
+          margin-bottom: 2px;
+        }
+        
+        .calendar-day-content {
+          font-size: 10px;
+          line-height: 1.2;
+        }
+        
+        .accomplishment-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          display: inline-block;
+          margin: 1px;
+        }
+        
+        .accomplishment-dot.tasks {
+          background-color: var(--sage-primary);
+        }
+        
+        .accomplishment-dot.habits {
+          background-color: var(--brown-primary);
+        }
+        
+        .accomplishment-dot.gratitude {
+          background-color: var(--accent-blue);
+        }
+        
+        .accomplishment-dot.affirmation {
+          background-color: var(--accent-purple);
+        }
+        
+        .accomplishment-text {
+          color: var(--sage-dark);
+          font-size: 9px;
+          margin-top: 2px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        
+        .calendar-legend {
+          display: flex;
+          gap: var(--spacing-md);
+          justify-content: center;
+          flex-wrap: wrap;
+          margin-top: var(--spacing-md);
+          font-size: var(--font-size-xs);
+          color: var(--sage-medium);
+        }
+        
+        .legend-item {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        
+        .week-selector {
+          background-color: var(--bg-highlighted);
+          border: 1px solid var(--border-brown);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-lg);
+          margin-bottom: var(--spacing-lg);
+          text-align: center;
+        }
+        
+        .week-selector-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: var(--spacing-sm);
+        }
+        
+        .week-nav-btn {
+          background-color: var(--bg-card);
+          border: 1px solid var(--border-input);
+          border-radius: var(--radius-sm);
+          padding: var(--spacing-xs) var(--spacing-md);
+          cursor: pointer;
+          font-size: var(--font-size-sm);
+          color: var(--sage-medium);
+          transition: all 0.2s ease;
+        }
+        
+        .week-nav-btn:hover {
+          background-color: var(--sage-primary);
+          border-color: var(--sage-primary);
+          color: white;
+        }
+        
+        .week-title {
+          font-size: var(--font-size-lg);
+          font-weight: var(--font-weight-semibold);
+          color: var(--sage-dark);
+        }
+        
+        .week-subtitle {
+          font-size: var(--font-size-sm);
+          color: var(--sage-light);
+          margin-top: 4px;
+        }
+        
+        .energy-selector {
+          background: linear-gradient(135deg, var(--bg-highlighted) 0%, var(--bg-subtle) 100%);
+          border: 1px solid var(--border-brown);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-lg);
+          margin-bottom: var(--spacing-lg);
+          text-align: center;
+        }
+        
+        .energy-title {
+          color: var(--sage-dark);
+          font-size: var(--font-size-lg);
+          font-weight: var(--font-weight-semibold);
+          margin-bottom: var(--spacing-sm);
+        }
+        
+        .energy-buttons {
+          display: flex;
+          gap: var(--spacing-xs);
+          justify-content: center;
+          flex-wrap: wrap;
+          margin-bottom: var(--spacing-sm);
+        }
+        
+        .energy-btn {
+          padding: var(--spacing-xs) var(--spacing-md);
+          border-radius: var(--radius-pill);
+          border: 2px solid var(--border-input);
+          background-color: var(--bg-card);
+          color: var(--sage-medium);
+          cursor: pointer;
+          font-size: var(--font-size-sm);
+          font-weight: var(--font-weight-medium);
+          transition: all 0.3s ease;
+        }
+        
+        .energy-btn.active {
+          border-color: var(--sage-primary);
+          background-color: var(--sage-primary);
+          color: white;
+        }
+        
+        .energy-btn:hover {
+          border-color: var(--sage-secondary);
+          transform: translateY(-1px);
+        }
+        
+        .mood-selector {
+          display: flex;
+          gap: var(--spacing-sm);
+          justify-content: center;
+          margin-top: var(--spacing-sm);
+        }
+        
+        .mood-btn {
+          font-size: 24px;
+          padding: var(--spacing-sm);
+          border: 2px solid transparent;
+          border-radius: 50%;
+          background-color: transparent;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        
+        .mood-btn.active {
+          border-color: var(--sage-primary);
+          background-color: var(--bg-subtle);
+          transform: scale(1.2);
+        }
+        
+        .mood-btn:hover {
+          transform: scale(1.1);
+        }
+        
+        .celebration-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          pointer-events: none;
+          z-index: 2000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .celebration-message {
+          background: linear-gradient(135deg, var(--sage-primary), var(--sage-secondary));
+          color: white;
+          padding: var(--spacing-lg) var(--spacing-xl);
+          border-radius: var(--radius-lg);
+          font-size: var(--font-size-lg);
+          font-weight: var(--font-weight-semibold);
+          text-align: center;
+          animation: celebrationBounce 3s ease-out;
+          box-shadow: var(--shadow-elevated);
+        }
+        
+        @keyframes celebrationBounce {
+          0% {
+            opacity: 0;
+            transform: scale(0.3) translateY(100px);
+          }
+          20% {
+            opacity: 1;
+            transform: scale(1.1) translateY(-20px);
+          }
+          40% {
+            transform: scale(0.95) translateY(10px);
+          }
+          60% {
+            transform: scale(1.02) translateY(-5px);
+          }
+          80% {
+            transform: scale(1) translateY(0);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        
+        .confetti-particle {
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          background: var(--sage-primary);
+          animation: confettiFall 3s ease-out forwards;
+        }
+        
+        @keyframes confettiFall {
+          0% {
+            transform: translateY(-100vh) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(100vh) rotate(720deg);
+            opacity: 0;
+          }
+        }
+        
+        .future-message-card {
+          background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+          color: white;
+          padding: var(--spacing-lg);
+          border-radius: var(--radius-lg);
+          margin-bottom: var(--spacing-lg);
+          text-align: center;
+          font-style: italic;
+          font-size: var(--font-size-md);
+          line-height: 1.5;
+        }
+        
+        .gentle-mode-indicator {
+          background-color: var(--bg-highlighted);
+          border: 1px solid var(--brown-light);
+          border-radius: var(--radius-md);
+          padding: var(--spacing-sm);
+          margin-bottom: var(--spacing-lg);
+          text-align: center;
+          font-size: var(--font-size-sm);
+          color: var(--sage-dark);
+          font-style: italic;
+        }
+        
+        .fullscreen-timer {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: linear-gradient(135deg, var(--bg-main) 0%, var(--bg-highlighted) 100%);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          cursor: pointer;
+        }
+        
+        .fullscreen-timer-display {
+          font-size: clamp(4rem, 15vw, 12rem);
+          font-weight: 300;
+          font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+          color: var(--sage-dark);
+          margin-bottom: 2rem;
+          text-align: center;
+          letter-spacing: 0.1em;
+        }
+        
+        .fullscreen-timer-mode {
+          font-size: clamp(1.2rem, 3vw, 2rem);
+          color: var(--sage-light);
+          margin-bottom: 3rem;
+          text-align: center;
+          font-weight: 300;
+        }
+        
+        .fullscreen-timer-controls {
+          display: flex;
+          gap: 2rem;
+          margin-bottom: 2rem;
+        }
+        
+        .fullscreen-timer-controls .btn {
+          padding: 1rem 2rem;
+          font-size: 1.1rem;
+          min-width: 120px;
+        }
+        
+        .fullscreen-exit-hint {
+          position: absolute;
+          bottom: 2rem;
+          left: 50%;
+          transform: translateX(-50%);
+          color: var(--sage-muted);
+          font-size: var(--font-size-sm);
+          text-align: center;
+          opacity: 0.7;
+        }
+        
+        .timer-card-clickable {
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        
+        .timer-card-clickable:hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-elevated);
+        }
+        
+        .desktop-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+          gap: var(--spacing-lg);
+          margin-bottom: var(--spacing-lg);
+        }
+        
+        @media (min-width: 768px) {
+          .desktop-two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-lg);
+          }
+          
+          .desktop-three-col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-lg);
+          }
+          
+          .timer-progress-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+          }
+          
+          .task-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: var(--spacing-lg);
+          }
+        }
+        
+        @media (min-width: 1024px) {
+          .desktop-four-col {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-lg);
+          }
+        }
+      `}</style>
+      
+      <div className="app-container">
+        
+        <div className="header">
+          <button 
+            onClick={() => setCurrentView(currentView === 'settings' ? 'today' : 'settings')}
+            className={`settings-btn ${currentView === 'settings' ? 'active' : ''}`}
+            title="Settings"
+          >
+          </button>
+          
+          <h2 className="title">
+            Kenzie's Planner
+          </h2>
+          <div className="subtitle">
+            Getting unstuck, one tiny step at a time
+            <div className="timestamp">
+              {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} • {currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+            </div>
+          </div>
+          
+          {/* View Toggle */}
+          <div className="nav-tabs">
+            {[
+              { key: 'today', label: 'Today' },
+              { key: 'week', label: 'Planning' },
+              { key: 'calendar', label: 'Calendar' },
+              { key: 'habits', label: 'Habits' }
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setCurrentView(key)}
+                className={`nav-tab ${currentView === key ? 'active' : 'inactive'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {currentView === 'today' ? (
+          <>
+            {/* Energy and Mood Check-in */}
+            <div className="energy-selector">
+              <h3 className="energy-title">How's your energy today?</h3>
+              <div className="energy-buttons">
+                {[
+                  { key: 'survival', label: 'Just surviving', emoji: '🌱' },
+                  { key: 'low', label: 'Low energy', emoji: '🌙' },
+                  { key: 'medium', label: 'Getting by', emoji: '☀️' },
+                  { key: 'high', label: 'Feeling good', emoji: '⭐' }
+                ].map(({ key, label, emoji }) => (
+                  <button
+                    key={key}
+                    onClick={() => setDailyEnergy(key)}
+                    className={`energy-btn ${dailyEnergy === key ? 'active' : ''}`}
+                  >
+                    {emoji} {label}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="mood-selector">
+                {['😔', '😐', '😊'].map(mood => (
+                  <button
+                    key={mood}
+                    onClick={() => setDailyMood(mood)}
+                    className={`mood-btn ${dailyMood === mood ? 'active' : ''}`}
+                  >
+                    {mood}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Gentle Mode Indicator */}
+            {(dailyEnergy === 'survival' || dailyEnergy === 'low') && (
+              <div className="gentle-mode-indicator">
+                💚 Gentle mode activated - Today is about being kind to yourself. Every tiny step counts.
+              </div>
+            )}
+
+            {/* Future Self Message */}
+            <div className="future-message-card">
+              {getRandomFutureMessage()}
+            </div>
+
+            {/* Week Progress */}
+            <div className="card highlighted text-center">
+              <p className="text-primary" style={{ margin: '0 0 12px 0', fontWeight: '600' }}>
+                Successful Days This Week: {daysThisWeek}/7
+              </p>
+              <div className="week-circles">
+                {[...Array(7)].map((_, i) => (
+                  <div 
+                    key={i}
+                    className={`week-circle ${i < daysThisWeek ? 'completed' : 'incomplete'}`}
+                  >
+                    {i < daysThisWeek ? '✓' : i + 1}
+                  </div>
+                ))}
+              </div>
+              <button 
+                onClick={resetDay}
+                className="btn btn-secondary"
+              >
+                ↻ Start New Day
+              </button>
+            </div>
+
+            {/* Focus Timer */}
+            <div 
+              className="card highlighted text-center timer-card-clickable"
+              onClick={() => setIsFullscreenTimer(true)}
+              title="Click to enter focus mode"
+            >
+              <h3 className="card-title">
+                Focus Timer
+              </h3>
+              <div style={{ 
+                fontSize: '36px', 
+                fontWeight: '700', 
+                color: timer.mode === 'work' ? 'var(--sage-primary)' : 'var(--accent-blue)',
+                marginBottom: '10px',
+                fontFamily: 'monospace'
+              }}>
+                {formatTime(timer.minutes, timer.seconds)}
+              </div>
+              <div style={{ marginBottom: '14px', fontSize: 'var(--font-size-md)', color: 'var(--sage-light)' }}>
+                {timer.mode === 'work' ? 'Work Time' : 'Break Time'}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    timer.isRunning ? pauseTimer() : startTimer();
+                  }}
+                  className="btn"
+                  style={{
+                    backgroundColor: timer.isRunning ? 'var(--bg-inactive)' : 'var(--sage-primary)',
+                    color: timer.isRunning ? 'var(--sage-medium)' : 'white'
+                  }}
+                >
+                  {timer.isRunning ? 'Pause' : 'Start'}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    resetTimer();
+                  }}
+                  className="btn btn-tertiary"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            {/* Daily Gratitude and Affirmation */}
+            <div className="reflection-section">
+              {dailyReflection.gratitude.showTwinkle && (
+                <>
+                  <div className="twinkle-effect"></div>
+                  <div className="twinkle-stars"></div>
+                </>
+              )}
+              
+              <h3 className="reflection-title">What are you grateful for today?</h3>
+              
+              {!dailyReflection.gratitude.isSubmitted ? (
+                <div className="reflection-input-container">
+                  <textarea
+                    className="reflection-input"
+                    value={dailyReflection.gratitude.text}
+                    onChange={(e) => updateReflectionText('gratitude', e.target.value)}
+                    placeholder="I'm grateful for..."
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        submitReflection('gratitude');
+                      }
+                    }}
+                  />
+                  <button
+                    className="submit-reflection-btn"
+                    onClick={() => submitReflection('gratitude')}
+                    disabled={!dailyReflection.gratitude.text.trim()}
+                  >
+                    Set My Gratitude ✨
+                  </button>
+                </div>
+              ) : (
+                <div className="reflection-submitted">
+                  "{dailyReflection.gratitude.text}"
+                </div>
+              )}
+            </div>
+
+            <div className="reflection-section">
+              {dailyReflection.affirmation.showTwinkle && (
+                <>
+                  <div className="twinkle-effect"></div>
+                  <div className="twinkle-stars"></div>
+                </>
+              )}
+              
+              <h3 className="reflection-title">Today's affirmation</h3>
+              
+              {!dailyReflection.affirmation.isSubmitted ? (
+                <div className="reflection-input-container">
+                  <textarea
+                    className="reflection-input"
+                    value={dailyReflection.affirmation.text}
+                    onChange={(e) => updateReflectionText('affirmation', e.target.value)}
+                    placeholder="I am... / I can... / Today I will..."
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        submitReflection('affirmation');
+                      }
+                    }}
+                  />
+                  <button
+                    className="submit-reflection-btn"
+                    onClick={() => submitReflection('affirmation')}
+                    disabled={!dailyReflection.affirmation.text.trim()}
+                  >
+                    Set My Affirmation ✨
+                  </button>
+                </div>
+              ) : (
+                <div className="reflection-submitted">
+                  "{dailyReflection.affirmation.text}"
+                </div>
+              )}
+            </div>
+
+            {/* Today's Plan Summary */}
+            {(getTodaysPlan().focus || getTodaysPlan().toDo || getTodaysPlan().reminders) && (
+              <div className="today-summary">
+                <div className="today-summary-title">
+                  Today's Summary
+                </div>
+                {getTodaysPlan().focus && (
+                  <p className="today-summary-item">
+                    <strong>Focus:</strong> {getTodaysPlan().focus}
+                  </p>
+                )}
+                {getTodaysPlan().toDo && (
+                  <p className="today-summary-item">
+                    <strong>To Do:</strong> {getTodaysPlan().toDo}
+                  </p>
+                )}
+                {getTodaysPlan().reminders && (
+                  <p className="today-summary-reminders">
+                    <strong>Reminders:</strong> {getTodaysPlan().reminders}
+                  </p>
+                )}
+              </div>
+            )}
+            
+            {/* Today's Progress */}
+            <div className="progress-bar">
+              <div 
+                className={`progress-fill ${completedCount >= 4 ? 'success' : 'in-progress'}`}
+                style={{ width: `${progressPercent}%` }}
+              ></div>
+            </div>
+            
+            <p className="text-center text-muted" style={{ marginBottom: '20px', fontSize: 'var(--font-size-md)' }}>
+              Tasks: {completedCount}/7 • Habits: {habitCount}/{Object.keys(habits).length} • {getEncouragement()}
+            </p>
+
+            {/* Survival Basics */}
+            <div className="card survival">
+              <h3 className="card-title">
+                {dailyEnergy === 'survival' ? 'You Are Enough (Just Being Here)' : 
+                 dailyEnergy === 'low' ? 'Gentle Care (Go Slow)' : 
+                 'Survival Basics (Do These First)'}
+              </h3>
+              
+              {getTasksForEnergy(dailyEnergy).map(({ key, text }) => (
+                <div key={key} className="checkbox-item">
+                  <label className="checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      checked={tasks[key]}
+                      onChange={() => toggleTask(key)}
+                      className="checkbox"
+                    />
+                    <span className={`checkbox-text ${tasks[key] ? 'completed' : 'incomplete'}`}>
+                      {text}
+                    </span>
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            {/* Mental Health Goal */}
+            <div className="card mental-health">
+              <h3 className="card-title">
+                {dailyEnergy === 'survival' ? 'Tiny Self-Compassion' : 
+                 dailyEnergy === 'low' ? 'Gentle Self-Care' : 
+                 'Mental Health: Be Kind to Myself'}
+              </h3>
+              
+              <div style={{ marginBottom: '10px' }}>
+                <select
+                  value={selectedMentalHealth}
+                  onChange={(e) => setSelectedMentalHealth(e.target.value)}
+                  className="select"
+                >
+                  <option value="">
+                    {dailyEnergy === 'survival' ? 'Choose something tiny and gentle...' : 
+                     dailyEnergy === 'low' ? 'Choose something soft and easy...' : 
+                     'Choose one tiny thing for my mental health...'}
+                  </option>
+                  {getMentalHealthForEnergy(dailyEnergy).map((option, i) => (
+                    <option key={i} value={option}>{option}</option>
+                  ))}
+                </select>
+                
+                <label className="checkbox-label">
+                  <input 
+                    type="checkbox" 
+                    checked={tasks.mentalHealth}
+                    onChange={() => toggleTask('mentalHealth')}
+                    className="checkbox"
+                  />
+                  <span className={`checkbox-text ${tasks.mentalHealth ? 'completed' : 'incomplete'}`} style={{ fontWeight: tasks.mentalHealth ? '500' : 'normal' }}>
+                    {selectedMentalHealth || "Pick something from the dropdown first"}
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Only show job/career goals if not in survival mode */}
+            {dailyEnergy !== 'survival' && (
+              <>
+                {/* Job Goal */}
+                <div className="card job-search">
+                  <h3 className="card-title">
+                    {dailyEnergy === 'low' ? 'Tiny Job Step (Optional)' : 'Part-Time Job: Tiny Step Forward'}
+                  </h3>
+                  
+                  <div style={{ marginBottom: '10px' }}>
+                    <select
+                      value={selectedJobStep}
+                      onChange={(e) => setSelectedJobStep(e.target.value)}
+                      className="select"
+                    >
+                      <option value="">
+                        {dailyEnergy === 'low' ? 'Only if you feel up to it...' : 'Choose one baby step toward a job...'}
+                      </option>
+                      {jobStepOptions.map((option, i) => (
+                        <option key={i} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <label className="checkbox-label">
+                      <input 
+                        type="checkbox" 
+                        checked={tasks.jobStep}
+                        onChange={() => toggleTask('jobStep')}
+                        className="checkbox"
+                      />
+                      <span className={`checkbox-text ${tasks.jobStep ? 'completed' : 'incomplete'}`} style={{ fontWeight: tasks.jobStep ? '500' : 'normal' }}>
+                        {selectedJobStep || "Pick something from the dropdown first"}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Career Goal */}
+                <div className="card career">
+                  <h3 className="card-title">
+                    {dailyEnergy === 'low' ? 'Future Building (When Ready)' : 'Career Building: Micro Progress'}
+                  </h3>
+                  
+                  <div style={{ marginBottom: '10px' }}>
+                    <select
+                      value={selectedCareerStep}
+                      onChange={(e) => setSelectedCareerStep(e.target.value)}
+                      className="select"
+                    >
+                      <option value="">
+                        {dailyEnergy === 'low' ? 'No pressure - only if it feels good...' : 'Choose one small career step...'}
+                      </option>
+                      {careerStepOptions.map((option, i) => (
+                        <option key={i} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <label className="checkbox-label">
+                      <input 
+                        type="checkbox" 
+                        checked={tasks.careerStep}
+                        onChange={() => toggleTask('careerStep')}
+                        className="checkbox"
+                      />
+                      <span className={`checkbox-text ${tasks.careerStep ? 'completed' : 'incomplete'}`} style={{ fontWeight: tasks.careerStep ? '500' : 'normal' }}>
+                        {selectedCareerStep || "Pick something from the dropdown first"}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Celebrate */}
+            <div className="card celebrate">
+              <h3 className="card-title">
+                {dailyEnergy === 'survival' ? 'I Existed Today' : 
+                 dailyEnergy === 'low' ? 'I Was Gentle With Myself' : 
+                 'End of Day: Celebrate'}
+              </h3>
+              
+              <label className="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  checked={tasks.celebrate}
+                  onChange={() => toggleTask('celebrate')}
+                  className="checkbox"
+                />
+                <span className={`checkbox-text ${tasks.celebrate ? 'completed' : 'incomplete'}`}>
+                  {dailyEnergy === 'survival' ? 'I made it through today, and that\'s beautiful ✨' : 
+                   dailyEnergy === 'low' ? 'I was kind to myself today, even in small ways ✨' : 
+                   'I did something today, even if it was small ✨'}
+                </span>
+              </label>
+            </div>
+
+            {/* Success Message */}
+            <div className={`card text-center ${completedCount >= 4 ? 'success' : ''}`} style={{ backgroundColor: completedCount >= 4 ? 'var(--bg-subtle)' : 'var(--bg-card)' }}>
+              <p className="text-primary" style={{ margin: '0 0 8px 0', fontWeight: '600', fontSize: 'var(--font-size-lg)' }}>
+                {completedCount >= 4 ? "SUCCESS!" : "Keep Going!"}
+              </p>
+              <p className="text-muted" style={{ margin: '0', fontSize: 'var(--font-size-sm)' }}>
+                {completedCount >= 4 
+                  ? "You're building the life you want, one tiny step at a time!"
+                  : "Even tiny steps count. You're breaking out of being stuck!"
+                }
+              </p>
+            </div>
+          </>
+        ) : currentView === 'week' ? (
+          // WEEK PLANNING VIEW
+          <div>
+            <h3 className="card-title text-center">
+              Weekly Planning
+            </h3>
+            <p className="text-muted text-center" style={{ marginBottom: '20px' }}>
+              Plan any week - current, future, or past weeks for reference
+            </p>
+
+            {/* Week Selector */}
+            <div className="week-selector">
+              <div className="week-selector-header">
+                <button 
+                  className="week-nav-btn"
+                  onClick={() => navigateWeek(-1)}
+                >
+                  ← Previous Week
+                </button>
+                <div>
+                  <div className="week-title">
+                    {getWeekDateRange(selectedWeekForPlanning).startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {getWeekDateRange(selectedWeekForPlanning).endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                  <div className="week-subtitle">
+                    {isCurrentWeekSelected() ? 'This Week' : 
+                     selectedWeekForPlanning < getCurrentWeekStart() ? 'Past Week' : 'Future Week'}
+                  </div>
+                </div>
+                <button 
+                  className="week-nav-btn"
+                  onClick={() => navigateWeek(1)}
+                >
+                  Next Week →
+                </button>
+              </div>
+              
+              {!isCurrentWeekSelected() && (
+                <button
+                  onClick={() => setSelectedWeekForPlanning(getCurrentWeekStart())}
+                  className="btn btn-primary btn-small"
+                  style={{ marginTop: '8px' }}
+                >
+                  Go to Current Week
+                </button>
+              )}
+            </div>
+            
+            <div className="desktop-grid">
+              {Object.entries(weekPlan).map(([day, plan]) => {
+                const isToday = day === getDayName() && isCurrentWeekSelected();
+                const dayNames = {
+                  monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday',
+                  thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday'
+                };
+                
+                return (
+                  <div 
+                    key={day}
+                    className={`card ${isToday ? 'highlighted success' : ''}`}
+                  >
+                    <h4 style={{ 
+                      margin: '0 0 14px 0', 
+                      color: isToday ? 'var(--sage-dark)' : 'var(--sage-medium)',
+                      fontSize: 'var(--font-size-lg)',
+                      fontWeight: 'var(--font-weight-semibold)'
+                    }}>
+                      {dayNames[day]} {isToday && <span style={{ color: 'var(--sage-primary)', fontSize: 'var(--font-size-md)' }}>(Today)</span>}
+                    </h4>
+                    
+                    <div className="form-group">
+                      <label className="form-label">
+                        What's the main focus? (optional)
+                      </label>
+                      <select
+                        value={plan.focus}
+                        onChange={(e) => updateWeekPlan(day, 'focus', e.target.value)}
+                        className="select"
+                      >
+                        <option value="">No specific focus planned</option>
+                        {focusOptions.map((option, i) => (
+                          <option key={i} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label className="form-label">
+                        Things to do today
+                      </label>
+                      <textarea
+                        value={plan.toDo}
+                        onChange={(e) => updateWeekPlan(day, 'toDo', e.target.value)}
+                        placeholder="therapy 2pm, dentist 10am, grocery shopping, call mom..."
+                        className="textarea"
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label className="form-label">
+                        Reminders & notes
+                      </label>
+                      <textarea
+                        value={plan.reminders}
+                        onChange={(e) => updateWeekPlan(day, 'reminders', e.target.value)}
+                        placeholder="remember to text Sarah back, pick up dry cleaning, don't forget keys..."
+                        className="textarea"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="card" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-primary)' }}>
+              <p className="text-primary text-center" style={{ margin: '0', fontSize: 'var(--font-size-md)' }}>
+                <strong>Tip:</strong> Plan future weeks for appointments and events, then check the Calendar view 
+                to see all your planned weeks at once!
+              </p>
+            </div>
+          </div>
+
+        ) : currentView === 'calendar' ? (
+          // MONTHLY CALENDAR VIEW
+          <div>
+            <h3 className="card-title text-center">
+              Monthly Accomplishment Calendar
+            </h3>
+            <p className="text-muted text-center" style={{ marginBottom: '20px' }}>
+              See your planning, daily wins, gratitude, and affirmations all in one view
+            </p>
+            
+            <div className="monthly-calendar">
+              {/* Calendar Header */}
+              <div className="calendar-header">
+                <button 
+                  className="month-nav-btn"
+                  onClick={() => {
+                    const newDate = new Date(currentMonth);
+                    newDate.setMonth(newDate.getMonth() - 1);
+                    setCurrentMonth(newDate);
+                  }}
+                >
+                  ← Previous
+                </button>
+                <h4 className="month-title">
+                  {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h4>
+                <button 
+                  className="month-nav-btn"
+                  onClick={() => {
+                    const newDate = new Date(currentMonth);
+                    newDate.setMonth(newDate.getMonth() + 1);
+                    setCurrentMonth(newDate);
+                  }}
+                >
+                  Next →
+                </button>
+              </div>
+
+              {/* Weekday Headers */}
+              <div className="calendar-grid-month">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="calendar-weekday-header">
+                    {day}
+                  </div>
+                ))}
+
+                {/* Calendar Days */}
+                {getMonthCalendar(currentMonth).map((date, index) => {
+                  const dateString = getDateString(date);
+                  const dayData = monthlyData[dateString];
+                  const planData = getPlanForDate(date);
+                  const isToday = getDateString(date) === getDateString(new Date());
+                  const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+                  const isInCurrentWeek = isCurrentWeek(date);
+                  
+                  return (
+                    <div 
+                      key={index}
+                      className={`calendar-day-month ${
+                        !isCurrentMonth ? 'other-month' : ''
+                      } ${
+                        isToday ? 'today' : ''
+                      } ${
+                        isInCurrentWeek && isCurrentMonth ? 'current-week' : ''
+                      }`}
+                    >
+                      <div className="calendar-day-number">
+                        {date.getDate()}
+                      </div>
+                      
+                      <div className="calendar-day-content">
+                        {/* Weekly Planning Data - Only for current week */}
+                        {planData?.focus && (
+                          <div className="accomplishment-text" style={{ color: 'var(--accent-purple)', fontWeight: '500' }}>
+                            {planData.focus.substring(0, 15)}...
+                          </div>
+                        )}
+                        {planData?.toDo && (
+                          <div className="accomplishment-text" style={{ color: 'var(--sage-primary)', fontWeight: '500' }}>
+                            {planData.toDo.substring(0, 15)}...
+                          </div>
+                        )}
+                        {planData?.reminders && (
+                          <div className="accomplishment-text" style={{ color: 'var(--brown-primary)', fontStyle: 'italic' }}>
+                            {planData.reminders.substring(0, 15)}...
+                          </div>
+                        )}
+                        
+                        {/* Accomplishment Data */}
+                        {dayData && (
+                          <>
+                            {/* Accomplishment dots */}
+                            <div style={{ marginTop: '2px' }}>
+                              {dayData.taskCount > 0 && (
+                                <span className="accomplishment-dot tasks" title={`${dayData.taskCount} tasks completed`}></span>
+                              )}
+                              {dayData.habitCount > 0 && (
+                                <span className="accomplishment-dot habits" title={`${dayData.habitCount} habits done`}></span>
+                              )}
+                              {dayData.gratitude && (
+                                <span className="accomplishment-dot gratitude" title="Gratitude written"></span>
+                              )}
+                              {dayData.affirmation && (
+                                <span className="accomplishment-dot affirmation" title="Affirmation set"></span>
+                              )}
+                            </div>
+                            
+                            {/* Brief text preview of gratitude/affirmations */}
+                            {dayData.gratitude && (
+                              <div className="accomplishment-text" title={dayData.gratitude} style={{ color: 'var(--accent-blue)' }}>
+                                "{dayData.gratitude.substring(0, 18)}..."
+                              </div>
+                            )}
+                            {dayData.affirmation && (
+                              <div className="accomplishment-text" title={dayData.affirmation} style={{ color: 'var(--accent-purple)' }}>
+                                {dayData.affirmation.substring(0, 18)}...
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="calendar-legend">
+                <div style={{ fontWeight: '500', color: 'var(--sage-dark)', marginRight: '12px' }}>Planned Weeks:</div>
+                <div className="legend-item">
+                  <span style={{ width: '8px', height: '8px', backgroundColor: 'var(--sage-primary)', borderRadius: '2px', display: 'inline-block' }}></span>
+                  To-dos
+                </div>
+                <div className="legend-item">
+                  <span style={{ width: '8px', height: '8px', backgroundColor: 'var(--brown-primary)', borderRadius: '2px', display: 'inline-block' }}></span>
+                  Reminders
+                </div>
+                <div style={{ fontWeight: '500', color: 'var(--sage-dark)', margin: '0 12px 0 20px' }}>Daily Accomplishments:</div>
+                <div className="legend-item">
+                  <span className="accomplishment-dot tasks"></span>
+                  Tasks
+                </div>
+                <div className="legend-item">
+                  <span className="accomplishment-dot habits"></span>
+                  Habits
+                </div>
+                <div className="legend-item">
+                  <span className="accomplishment-dot gratitude"></span>
+                  Gratitude
+                </div>
+                <div className="legend-item">
+                  <span className="accomplishment-dot affirmation"></span>
+                  Affirmation
+                </div>
+              </div>
+            </div>
+            
+            <div className="card" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-primary)', marginTop: '20px' }}>
+              <p className="text-primary text-center" style={{ margin: '0', fontSize: 'var(--font-size-sm)' }}>
+                <strong>Your complete month at a glance!</strong> Any planned weeks show colored text, 
+                while daily accomplishments show as dots. Current week is highlighted in cream.
+              </p>
+            </div>
+          </div>
+        ) : currentView === 'settings' ? (
+          // SETTINGS VIEW
+          <div>
+            <h3 className="card-title text-center">
+              Customize Your Options
+            </h3>
+            <p className="text-muted text-center" style={{ marginBottom: '20px' }}>
+              Personalize the dropdown options to match your current goals and preferences
+            </p>
+
+            <div className="desktop-two-col">
+              <div>
+                {/* Mental Health Options */}
+                <div className="category-section">
+                  <h4 className="category-title">Mental Health Activities</h4>
+                  <div className="options-list">
+                    {customOptions.mentalHealth.map((option, index) => (
+                      <div key={index} className="option-item">
+                        <span>{option}</span>
+                        <button 
+                          onClick={() => removeOption('mentalHealth', index)}
+                          className="remove-btn"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <div className="add-option-container">
+                      <input
+                        type="text"
+                        value={newOptionInputs.mentalHealth}
+                        onChange={(e) => handleNewOptionChange('mentalHealth', e.target.value)}
+                        placeholder="Add new mental health activity..."
+                        className="add-option-input"
+                        onKeyPress={(e) => e.key === 'Enter' && addOption('mentalHealth')}
+                      />
+                      <button 
+                        onClick={() => addOption('mentalHealth')}
+                        className="btn btn-primary btn-small"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Job Search Options */}
+                <div className="category-section">
+                  <h4 className="category-title">Job Search Steps</h4>
+                  <div className="options-list">
+                    {customOptions.jobSteps.map((option, index) => (
+                      <div key={index} className="option-item">
+                        <span>{option}</span>
+                        <button 
+                          onClick={() => removeOption('jobSteps', index)}
+                          className="remove-btn"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <div className="add-option-container">
+                      <input
+                        type="text"
+                        value={newOptionInputs.jobSteps}
+                        onChange={(e) => handleNewOptionChange('jobSteps', e.target.value)}
+                        placeholder="Add new job search step..."
+                        className="add-option-input"
+                        onKeyPress={(e) => e.key === 'Enter' && addOption('jobSteps')}
+                      />
+                      <button 
+                        onClick={() => addOption('jobSteps')}
+                        className="btn btn-primary btn-small"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                {/* Career Building Options */}
+                <div className="category-section">
+                  <h4 className="category-title">Career Building Activities</h4>
+                  <div className="options-list">
+                    {customOptions.careerSteps.map((option, index) => (
+                      <div key={index} className="option-item">
+                        <span>{option}</span>
+                        <button 
+                          onClick={() => removeOption('careerSteps', index)}
+                          className="remove-btn"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <div className="add-option-container">
+                      <input
+                        type="text"
+                        value={newOptionInputs.careerSteps}
+                        onChange={(e) => handleNewOptionChange('careerSteps', e.target.value)}
+                        placeholder="Add new career activity..."
+                        className="add-option-input"
+                        onKeyPress={(e) => e.key === 'Enter' && addOption('careerSteps')}
+                      />
+                      <button 
+                        onClick={() => addOption('careerSteps')}
+                        className="btn btn-primary btn-small"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Focus Options */}
+                <div className="category-section">
+                  <h4 className="category-title">Daily Focus Types</h4>
+                  <div className="options-list">
+                    {customOptions.focusOptions.map((option, index) => (
+                      <div key={index} className="option-item">
+                        <span>{option}</span>
+                        <button 
+                          onClick={() => removeOption('focusOptions', index)}
+                          className="remove-btn"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <div className="add-option-container">
+                      <input
+                        type="text"
+                        value={newOptionInputs.focusOptions}
+                        onChange={(e) => handleNewOptionChange('focusOptions', e.target.value)}
+                        placeholder="Add new focus type..."
+                        className="add-option-input"
+                        onKeyPress={(e) => e.key === 'Enter' && addOption('focusOptions')}
+                      />
+                      <button 
+                        onClick={() => addOption('focusOptions')}
+                        className="btn btn-primary btn-small"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Habit Customization */}
+            <div className="category-section">
+              <h4 className="category-title">Daily Habits</h4>
+              <div className="options-list">
+                {Object.entries(habits).map(([habitKey, habit]) => (
+                  <div key={habitKey} className="habit-item-editable">
+                    <input
+                      type="text"
+                      value={habit.name}
+                      onChange={(e) => updateHabitName(habitKey, e.target.value)}
+                      className="habit-name-input"
+                    />
+                    <div className="habit-actions">
+                      <span className="habit-streak">{habit.streak} streak</span>
+                      <button 
+                        onClick={() => removeHabit(habitKey)}
+                        className="remove-btn"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div className="add-option-container">
+                  <input
+                    type="text"
+                    value={newOptionInputs.newHabit}
+                    onChange={(e) => handleNewOptionChange('newHabit', e.target.value)}
+                    placeholder="Add new habit..."
+                    className="add-option-input"
+                    onKeyPress={(e) => e.key === 'Enter' && addHabit()}
+                  />
+                  <button 
+                    onClick={addHabit}
+                    className="btn btn-primary btn-small"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="card" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-primary)' }}>
+              <p className="text-primary text-center" style={{ margin: '0', fontSize: 'var(--font-size-md)' }}>
+                <strong>Tip:</strong> Customize these options and habits as your goals evolve. Remove what's no longer relevant and add new activities that support your current journey!
+              </p>
+            </div>
+          </div>
+        ) : (
+          // HABITS VIEW
+          <div>
+            <h3 className="card-title text-center">
+              Daily Habits Tracker
+            </h3>
+            <p className="text-muted text-center" style={{ marginBottom: '20px' }}>
+              Build healthy routines one day at a time. Streaks don't have to be perfect!
+            </p>
+            
+            <div className="desktop-grid">
+              {Object.entries(habits).map(([key, habit]) => (
+                <div 
+                  key={key}
+                  className="card"
+                  style={{
+                    border: habit.todayDone ? '2px solid var(--sage-primary)' : '1px solid var(--border-secondary)',
+                    marginBottom: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="checkbox-label" style={{ flex: 1 }}>
+                      <input 
+                        type="checkbox" 
+                        checked={habit.todayDone}
+                        onChange={() => toggleHabit(key)}
+                        className="checkbox"
+                      />
+                      <span className={`checkbox-text ${habit.todayDone ? 'completed' : 'incomplete'}`}>
+                        {habit.name}
+                      </span>
+                    </label>
+                    <div style={{ 
+                      backgroundColor: habit.streak > 0 ? 'var(--bg-subtle)' : 'var(--bg-inactive)',
+                      padding: '4px 8px',
+                      borderRadius: '12px',
+                      fontSize: 'var(--font-size-xs)',
+                      fontWeight: 'var(--font-weight-semibold)',
+                      color: habit.streak > 0 ? 'var(--sage-primary)' : 'var(--sage-muted)'
+                    }}>
+                      {habit.streak} day streak
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="card" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-primary)' }}>
+              <p className="text-primary" style={{ margin: '0', fontSize: 'var(--font-size-md)' }}>
+                <strong>Remember:</strong> Habits are about consistency, not perfection. 
+                Missing a day doesn't ruin your progress - just start again tomorrow!
+              </p>
+            </div>
+          </div>
+        )}
+        
+      </div>
+      
+      {/* Fullscreen Timer Overlay */}
+      {isFullscreenTimer && (
+        <div 
+          className="fullscreen-timer"
+          onClick={() => setIsFullscreenTimer(false)}
+        >
+          <div className="fullscreen-timer-mode">
+            {timer.mode === 'work' ? 'Focus Time' : 'Break Time'}
+          </div>
+          
+          <div 
+            className="fullscreen-timer-display"
+            style={{ 
+              color: timer.mode === 'work' ? 'var(--sage-primary)' : 'var(--accent-blue)'
+            }}
+          >
+            {formatTime(timer.minutes, timer.seconds)}
+          </div>
+          
+          <div className="fullscreen-timer-controls">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                timer.isRunning ? pauseTimer() : startTimer();
+              }}
+              className="btn"
+              style={{
+                backgroundColor: timer.isRunning ? 'var(--bg-inactive)' : 'var(--sage-primary)',
+                color: timer.isRunning ? 'var(--sage-medium)' : 'white'
+              }}
+            >
+              {timer.isRunning ? 'Pause' : 'Start'}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                resetTimer();
+              }}
+              className="btn btn-tertiary"
+            >
+              Reset
+            </button>
+          </div>
+          
+          <div className="fullscreen-exit-hint">
+            Click anywhere or press ESC to exit focus mode
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default ADHDSuccessTracker;
