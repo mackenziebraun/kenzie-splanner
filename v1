@@ -15,8 +15,13 @@ const ADHDSuccessTracker = () => {
   });
 
   const [selectedMentalHealth, setSelectedMentalHealth] = useState('');
-  const [selectedJobStep, setSelectedJobStep] = useState('');
-  const [selectedCareerStep, setSelectedCareerStep] = useState('');
+  
+  // Dynamic job and career task lists
+  const [jobTasks, setJobTasks] = useState([]);
+  const [careerTasks, setCareerTasks] = useState([]);
+  const [newJobTask, setNewJobTask] = useState('');
+  const [newCareerTask, setNewCareerTask] = useState('');
+  
   const [daysThisWeek, setDaysThisWeek] = useState(0);
   
   // Timer/Pomodoro state
@@ -55,7 +60,7 @@ const ADHDSuccessTracker = () => {
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState('');
   
-  // Future self messages
+  // Future self messages - now with built-in inspirational quotes
   const [futureMessages, setFutureMessages] = useState([
     "Hey there - you're stronger than you think. Even tiny steps count. 💚",
     "Remember: rest is productive too. You're doing enough just by existing today.",
@@ -64,6 +69,64 @@ const ADHDSuccessTracker = () => {
     "Your worth isn't measured by your productivity. You matter just as you are."
   ]);
   const [newFutureMessage, setNewFutureMessage] = useState('');
+  
+  // Large dataset of inspirational quotes and affirmations
+  const [inspirationalQuotes] = useState([
+    "Progress, not perfection, is the goal.",
+    "You are capable of more than you know.",
+    "Every small step forward is still progress.",
+    "Your potential is endless.",
+    "Believe in yourself and all that you are.",
+    "You are enough, just as you are.",
+    "Tomorrow is full of possibilities.",
+    "You have survived 100% of your worst days.",
+    "Growth happens outside your comfort zone.",
+    "You are the author of your own story.",
+    "Small steps every day lead to big changes one year later.",
+    "You don't have to be perfect, you just have to be you.",
+    "Your current situation is not your final destination.",
+    "You are braver than you believe and stronger than you seem.",
+    "Every expert was once a beginner.",
+    "You are not behind in life. Your timing is your timing.",
+    "The only way to do great work is to love what you do.",
+    "You are exactly where you need to be.",
+    "Your mistakes do not define you.",
+    "You have the power to create change.",
+    "Be patient with yourself. Self-growth is tender.",
+    "You are worthy of love and belonging.",
+    "Your voice matters. Your story matters.",
+    "Rest when you need to, but don't give up.",
+    "You are learning and growing every day.",
+    "Comparison is the thief of joy. Focus on your own journey.",
+    "You are allowed to take up space.",
+    "Your feelings are valid.",
+    "You don't have to have it all figured out.",
+    "You are doing better than you think you are.",
+    "It's okay to start over as many times as you need.",
+    "You are not a burden. You are a gift.",
+    "Your mental health matters.",
+    "You are allowed to prioritize yourself.",
+    "Progress isn't always visible, but it's always happening.",
+    "You are resilient and resourceful.",
+    "Your efforts are noticed, even when it doesn't feel like it.",
+    "You deserve good things.",
+    "You are learning to trust yourself.",
+    "It's okay to not be okay sometimes.",
+    "You are worthy of your own compassion.",
+    "You don't have to earn your worth.",
+    "You are allowed to change your mind.",
+    "Your sensitivity is a strength, not a weakness.",
+    "You are exactly who you're supposed to be right now.",
+    "You have made it through difficult times before.",
+    "You are allowed to take things one day at a time.",
+    "Your journey is unique and valid.",
+    "You are capable of handling whatever comes your way.",
+    "You deserve to take up space in this world."
+  ]);
+  
+  const [useInspirationalQuotes, setUseInspirationalQuotes] = useState(false);
+  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
+  const [dailyMessage, setDailyMessage] = useState(''); // Stable daily message
   
   // Habit tracking
   const [habits, setHabits] = useState({
@@ -88,28 +151,6 @@ const ADHDSuccessTracker = () => {
       "Pet an animal or look at cute animal photos",
       "Make a warm drink and sip it slowly"
     ],
-    jobSteps: [
-      "Look at 3 job postings (don't apply, just look)",
-      "Update 1 line on my resume",
-      "Practice saying my name out loud (interview prep)",
-      "Find 1 local business that might hire",
-      "Ask 1 person if they know of any jobs",
-      "Fill out 1 application (even if it's not perfect)",
-      "Call 1 place to ask if they're hiring",
-      "Write a 2-sentence cover letter draft",
-      "Research 1 company I'm interested in"
-    ],
-    careerSteps: [
-      "Watch 1 YouTube video about my field",
-      "Read 1 article about career stuff",
-      "Spend 10 minutes on LinkedIn just browsing",
-      "Research 1 skill I want to learn",
-      "Look up 1 company I think is cool",
-      "Write 1 paragraph about what I want to do",
-      "Ask 1 person about their job",
-      "Take 1 online quiz or assessment",
-      "Join 1 professional group or forum"
-    ],
     focusOptions: [
       "Mental health day - be extra gentle",
       "Job hunting focus - applications and searching", 
@@ -125,8 +166,6 @@ const ADHDSuccessTracker = () => {
 
   const [newOptionInputs, setNewOptionInputs] = useState({
     mentalHealth: '',
-    jobSteps: '',
-    careerSteps: '',
     focusOptions: '',
     newHabit: ''
   });
@@ -196,9 +235,52 @@ const ADHDSuccessTracker = () => {
   }, [isFullscreenTimer]);
 
   const mentalHealthOptions = customOptions.mentalHealth;
-  const jobStepOptions = customOptions.jobSteps;
-  const careerStepOptions = customOptions.careerSteps;
   const focusOptions = customOptions.focusOptions;
+
+  // Functions for dynamic job/career tasks
+  const addJobTask = () => {
+    if (newJobTask.trim()) {
+      const newTask = {
+        id: `job_${Date.now()}`,
+        text: newJobTask.trim(),
+        completed: false
+      };
+      setJobTasks(prev => [...prev, newTask]);
+      setNewJobTask('');
+    }
+  };
+
+  const addCareerTask = () => {
+    if (newCareerTask.trim()) {
+      const newTask = {
+        id: `career_${Date.now()}`,
+        text: newCareerTask.trim(),
+        completed: false
+      };
+      setCareerTasks(prev => [...prev, newTask]);
+      setNewCareerTask('');
+    }
+  };
+
+  const toggleJobTask = (taskId) => {
+    setJobTasks(prev => prev.map(task => 
+      task.id === taskId ? { ...task, completed: !task.completed } : task
+    ));
+  };
+
+  const toggleCareerTask = (taskId) => {
+    setCareerTasks(prev => prev.map(task => 
+      task.id === taskId ? { ...task, completed: !task.completed } : task
+    ));
+  };
+
+  const removeJobTask = (taskId) => {
+    setJobTasks(prev => prev.filter(task => task.id !== taskId));
+  };
+
+  const removeCareerTask = (taskId) => {
+    setCareerTasks(prev => prev.filter(task => task.id !== taskId));
+  };
 
   const toggleTask = (taskKey) => {
     setTasks(prev => {
@@ -299,8 +381,7 @@ const ADHDSuccessTracker = () => {
     // Save today's accomplishments before resetting
     saveDailyData();
     
-    const completedCount = Object.values(tasks).filter(Boolean).length;
-    if (completedCount >= 4) {
+    if (totalTasksCompleted >= 4) {
       setDaysThisWeek(prev => Math.min(prev + 1, 7));
     }
     
@@ -315,8 +396,12 @@ const ADHDSuccessTracker = () => {
     });
     
     setSelectedMentalHealth('');
-    setSelectedJobStep('');
-    setSelectedCareerStep('');
+    
+    // Reset job and career tasks
+    setJobTasks([]);
+    setCareerTasks([]);
+    setNewJobTask('');
+    setNewCareerTask('');
     
     // Reset daily reflections for new day
     setDailyReflection({
@@ -338,15 +423,18 @@ const ADHDSuccessTracker = () => {
   };
 
   const completedCount = Object.values(tasks).filter(Boolean).length;
-  const progressPercent = Math.round((completedCount / 7) * 100);
+  const jobTasksCompleted = jobTasks.filter(task => task.completed).length;
+  const careerTasksCompleted = careerTasks.filter(task => task.completed).length;
+  const totalTasksCompleted = completedCount + jobTasksCompleted + careerTasksCompleted;
+  const progressPercent = Math.round((totalTasksCompleted / (7 + jobTasks.length + careerTasks.length)) * 100);
   const habitCount = Object.values(habits).filter(h => h.todayDone).length;
   
   const getEncouragement = () => {
-    if (completedCount === 0) return "It's okay to start slow. Pick the easiest thing first.";
-    if (completedCount === 1) return "You started! That's the hardest part. 💪";
-    if (completedCount === 2) return "Building momentum! You're doing this.";
-    if (completedCount === 3) return "Look at you go! This is how change happens.";
-    if (completedCount >= 4) return "You're crushing it today! 🎉 This is success.";
+    if (totalTasksCompleted === 0) return "It's okay to start slow. Pick the easiest thing first.";
+    if (totalTasksCompleted <= 2) return "You started! That's the hardest part. 💪";
+    if (totalTasksCompleted <= 4) return "Building momentum! You're doing this.";
+    if (totalTasksCompleted <= 6) return "Look at you go! This is how change happens.";
+    if (totalTasksCompleted >= 7) return "You're crushing it today! 🎉 This is success.";
   };
 
   const formatTime = (mins, secs) => {
@@ -431,6 +519,14 @@ const ADHDSuccessTracker = () => {
           isSubmitted: true
         }
       }));
+      
+      // Add submitted affirmations to personal collection
+      if (type === 'affirmation' && !futureMessages.includes(text)) {
+        setFutureMessages(prev => [...prev, text]);
+        triggerCelebration("Affirmation saved to your personal collection! 💚");
+      } else if (type === 'gratitude') {
+        triggerCelebration("Gratitude recorded! ✨");
+      }
       
       // Remove twinkle effect after animation
       setTimeout(() => {
@@ -659,8 +755,44 @@ const ADHDSuccessTracker = () => {
     setTimeout(() => setShowCelebration(false), 3000);
   };
 
+  // Get a new random inspirational quote
+  const getNewInspirationalQuote = () => {
+    const randomIndex = Math.floor(Math.random() * inspirationalQuotes.length);
+    setCurrentQuoteIndex(randomIndex);
+    setDailyMessage(inspirationalQuotes[randomIndex]);
+  };
+
+  // Get a new personal message
+  const getNewPersonalMessage = () => {
+    const randomMessage = futureMessages[Math.floor(Math.random() * futureMessages.length)];
+    setDailyMessage(randomMessage);
+  };
+
+  // Set initial daily message when component mounts or mode changes
+  useEffect(() => {
+    if (!dailyMessage || (useInspirationalQuotes && currentQuoteIndex === 0)) {
+      if (useInspirationalQuotes) {
+        getNewInspirationalQuote();
+      } else {
+        getNewPersonalMessage();
+      }
+    }
+  }, [useInspirationalQuotes, futureMessages.length]);
+
+  // Update daily message when switching modes
+  useEffect(() => {
+    if (useInspirationalQuotes) {
+      setDailyMessage(inspirationalQuotes[currentQuoteIndex] || inspirationalQuotes[0]);
+    } else {
+      if (!dailyMessage || inspirationalQuotes.includes(dailyMessage)) {
+        // If current message is from quotes, get a new personal message
+        getNewPersonalMessage();
+      }
+    }
+  }, [useInspirationalQuotes, currentQuoteIndex]);
+
   const getRandomFutureMessage = () => {
-    return futureMessages[Math.floor(Math.random() * futureMessages.length)];
+    return dailyMessage || (useInspirationalQuotes ? inspirationalQuotes[0] : futureMessages[0]);
   };
 
   const addFutureMessage = () => {
@@ -2002,6 +2134,33 @@ const ADHDSuccessTracker = () => {
             gap: var(--spacing-lg);
           }
         }
+        
+        .header-two-col {
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+          gap: var(--spacing-lg);
+          align-items: center;
+        }
+        
+        @media (max-width: 768px) {
+          .header-two-col {
+            grid-template-columns: 1fr;
+            gap: var(--spacing-md);
+          }
+          
+          .header-separator {
+            display: none;
+          }
+          
+          .mobile-separator {
+            display: block !important;
+            height: 2px;
+            width: 60px;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.6), transparent);
+            margin: var(--spacing-sm) auto;
+            border-radius: 2px;
+          }
+        }
       `}</style>
       
       <div className="app-container">
@@ -2028,13 +2187,21 @@ const ADHDSuccessTracker = () => {
           <div className="nav-tabs">
             {[
               { key: 'today', label: 'Today' },
+              { key: 'timer', label: 'Focus' },
               { key: 'week', label: 'Planning' },
               { key: 'calendar', label: 'Calendar' },
               { key: 'habits', label: 'Habits' }
             ].map(({ key, label }) => (
               <button
                 key={key}
-                onClick={() => setCurrentView(key)}
+                onClick={() => {
+                  if (key === 'timer') {
+                    setCurrentView('today'); // Keep the view as today but trigger fullscreen
+                    setIsFullscreenTimer(true);
+                  } else {
+                    setCurrentView(key);
+                  }
+                }}
                 className={`nav-tab ${currentView === key ? 'active' : 'inactive'}`}
               >
                 {label}
@@ -2045,6 +2212,180 @@ const ADHDSuccessTracker = () => {
 
         {currentView === 'today' ? (
           <>
+            {/* Week Progress & Future Message - Two Column Header */}
+            <div style={{
+              background: 'var(--sage-muted)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 'var(--spacing-lg)',
+              marginBottom: 'var(--spacing-lg)',
+              border: '1px solid var(--sage-secondary)'
+            }} className="header-two-col">
+              {/* Successful Days - Left Column */}
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ 
+                  margin: '0 0 12px 0', 
+                  fontWeight: '600', 
+                  fontSize: 'var(--font-size-lg)',
+                  color: 'white'
+                }}>
+                  Successful Days This Week: {daysThisWeek}/7
+                </p>
+                <div className="week-circles" style={{ justifyContent: 'center', marginBottom: '12px' }}>
+                  {[...Array(7)].map((_, i) => (
+                    <div 
+                      key={i}
+                      className={`week-circle ${i < daysThisWeek ? 'completed' : 'incomplete'}`}
+                      style={i < daysThisWeek ? {} : {
+                        backgroundColor: 'rgba(255,255,255,0.2)',
+                        color: 'rgba(255,255,255,0.7)',
+                        border: '2px solid rgba(255,255,255,0.3)'
+                      }}
+                    >
+                      {i < daysThisWeek ? '✓' : i + 1}
+                    </div>
+                  ))}
+                </div>
+                <button 
+                  onClick={resetDay}
+                  style={{
+                    backgroundColor: 'white',
+                    color: 'var(--sage-primary)',
+                    border: 'none',
+                    padding: 'var(--spacing-xs) var(--spacing-md)',
+                    borderRadius: 'var(--radius-pill)',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.backgroundColor = 'rgba(255,255,255,0.9)';
+                    e.target.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.backgroundColor = 'white';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  ↻ Start New Day
+                </button>
+              </div>
+
+              {/* Separator Line - Desktop */}
+              <div className="header-separator" style={{
+                width: '2px',
+                height: '120px',
+                background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.4), transparent)',
+                borderRadius: '2px'
+              }}></div>
+              
+              {/* Mobile Separator */}
+              <div className="mobile-separator" style={{ 
+                display: 'none',
+                background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent)'
+              }}></div>
+
+              {/* Future Self Message - Right Column */}
+              <div style={{
+                textAlign: 'center',
+                color: 'white',
+                padding: 'var(--spacing-md)',
+                fontStyle: 'italic',
+                fontSize: 'var(--font-size-lg)',
+                lineHeight: '1.5',
+                fontWeight: '500',
+                position: 'relative'
+              }}>
+                {getRandomFutureMessage()}
+                
+                {/* Quote Refresh Button */}
+                {useInspirationalQuotes && (
+                  <button
+                    onClick={getNewInspirationalQuote}
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      background: 'rgba(255,255,255,0.2)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '24px',
+                      height: '24px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.3)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.2)';
+                    }}
+                    title="Get new quote"
+                  >
+                    ↻
+                  </button>
+                )}
+                {!useInspirationalQuotes && (
+                  <button
+                    onClick={getNewPersonalMessage}
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      background: 'rgba(255,255,255,0.2)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '24px',
+                      height: '24px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.3)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.2)';
+                    }}
+                    title="Get new message"
+                  >
+                    ↻
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Today's Progress Summary */}
+            <div style={{
+              textAlign: 'center',
+              marginBottom: 'var(--spacing-lg)',
+              padding: 'var(--spacing-sm) 0'
+            }}>
+              <div className="progress-bar" style={{ marginBottom: '10px' }}>
+                <div 
+                  className={`progress-fill ${completedCount >= 4 ? 'success' : 'in-progress'}`}
+                  style={{ width: `${progressPercent}%` }}
+                ></div>
+              </div>
+              <p style={{ 
+                margin: '0', 
+                fontSize: 'var(--font-size-md)', 
+                fontWeight: '500',
+                color: 'var(--sage-medium)'
+              }}>
+                Tasks: {totalTasksCompleted}/{7 + jobTasks.length + careerTasks.length} • Habits: {habitCount}/{Object.keys(habits).length} • {getEncouragement()}
+              </p>
+            </div>
+
             {/* Energy and Mood Check-in */}
             <div className="energy-selector">
               <h3 className="energy-title">How's your energy today?</h3>
@@ -2064,18 +2405,6 @@ const ADHDSuccessTracker = () => {
                   </button>
                 ))}
               </div>
-              
-              <div className="mood-selector">
-                {['😔', '😐', '😊'].map(mood => (
-                  <button
-                    key={mood}
-                    onClick={() => setDailyMood(mood)}
-                    className={`mood-btn ${dailyMood === mood ? 'active' : ''}`}
-                  >
-                    {mood}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Gentle Mode Indicator */}
@@ -2084,81 +2413,6 @@ const ADHDSuccessTracker = () => {
                 💚 Gentle mode activated - Today is about being kind to yourself. Every tiny step counts.
               </div>
             )}
-
-            {/* Future Self Message */}
-            <div className="future-message-card">
-              {getRandomFutureMessage()}
-            </div>
-
-            {/* Week Progress */}
-            <div className="card highlighted text-center">
-              <p className="text-primary" style={{ margin: '0 0 12px 0', fontWeight: '600' }}>
-                Successful Days This Week: {daysThisWeek}/7
-              </p>
-              <div className="week-circles">
-                {[...Array(7)].map((_, i) => (
-                  <div 
-                    key={i}
-                    className={`week-circle ${i < daysThisWeek ? 'completed' : 'incomplete'}`}
-                  >
-                    {i < daysThisWeek ? '✓' : i + 1}
-                  </div>
-                ))}
-              </div>
-              <button 
-                onClick={resetDay}
-                className="btn btn-secondary"
-              >
-                ↻ Start New Day
-              </button>
-            </div>
-
-            {/* Focus Timer */}
-            <div 
-              className="card highlighted text-center timer-card-clickable"
-              onClick={() => setIsFullscreenTimer(true)}
-              title="Click to enter focus mode"
-            >
-              <h3 className="card-title">
-                Focus Timer
-              </h3>
-              <div style={{ 
-                fontSize: '36px', 
-                fontWeight: '700', 
-                color: timer.mode === 'work' ? 'var(--sage-primary)' : 'var(--accent-blue)',
-                marginBottom: '10px',
-                fontFamily: 'monospace'
-              }}>
-                {formatTime(timer.minutes, timer.seconds)}
-              </div>
-              <div style={{ marginBottom: '14px', fontSize: 'var(--font-size-md)', color: 'var(--sage-light)' }}>
-                {timer.mode === 'work' ? 'Work Time' : 'Break Time'}
-              </div>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    timer.isRunning ? pauseTimer() : startTimer();
-                  }}
-                  className="btn"
-                  style={{
-                    backgroundColor: timer.isRunning ? 'var(--bg-inactive)' : 'var(--sage-primary)',
-                    color: timer.isRunning ? 'var(--sage-medium)' : 'white'
-                  }}
-                >
-                  {timer.isRunning ? 'Pause' : 'Start'}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    resetTimer();
-                  }}
-                  className="btn btn-tertiary"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
 
             {/* Daily Gratitude and Affirmation */}
             <div className="reflection-section">
@@ -2260,18 +2514,6 @@ const ADHDSuccessTracker = () => {
                 )}
               </div>
             )}
-            
-            {/* Today's Progress */}
-            <div className="progress-bar">
-              <div 
-                className={`progress-fill ${completedCount >= 4 ? 'success' : 'in-progress'}`}
-                style={{ width: `${progressPercent}%` }}
-              ></div>
-            </div>
-            
-            <p className="text-center text-muted" style={{ marginBottom: '20px', fontSize: 'var(--font-size-md)' }}>
-              Tasks: {completedCount}/7 • Habits: {habitCount}/{Object.keys(habits).length} • {getEncouragement()}
-            </p>
 
             {/* Survival Basics */}
             <div className="card survival">
@@ -2342,34 +2584,85 @@ const ADHDSuccessTracker = () => {
                 {/* Job Goal */}
                 <div className="card job-search">
                   <h3 className="card-title">
-                    {dailyEnergy === 'low' ? 'Tiny Job Step (Optional)' : 'Part-Time Job: Tiny Step Forward'}
+                    {dailyEnergy === 'low' ? 'Tiny Job Steps (Optional)' : 'Part-Time Job: Daily Progress'}
                   </h3>
                   
-                  <div style={{ marginBottom: '10px' }}>
-                    <select
-                      value={selectedJobStep}
-                      onChange={(e) => setSelectedJobStep(e.target.value)}
-                      className="select"
-                    >
-                      <option value="">
-                        {dailyEnergy === 'low' ? 'Only if you feel up to it...' : 'Choose one baby step toward a job...'}
-                      </option>
-                      {jobStepOptions.map((option, i) => (
-                        <option key={i} value={option}>{option}</option>
-                      ))}
-                    </select>
+                  <div style={{ marginBottom: '14px' }}>
+                    {/* Job tasks checklist */}
+                    {jobTasks.map((task) => (
+                      <div key={task.id} className="checkbox-item">
+                        <label className="checkbox-label">
+                          <input 
+                            type="checkbox" 
+                            checked={task.completed}
+                            onChange={() => toggleJobTask(task.id)}
+                            className="checkbox"
+                          />
+                          <span className={`checkbox-text ${task.completed ? 'completed' : 'incomplete'}`}>
+                            {task.text}
+                          </span>
+                          <button
+                            onClick={() => removeJobTask(task.id)}
+                            style={{
+                              marginLeft: 'auto',
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--sage-muted)',
+                              cursor: 'pointer',
+                              padding: '2px 6px',
+                              fontSize: 'var(--font-size-xs)',
+                              borderRadius: 'var(--radius-sm)',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseOver={(e) => {
+                              e.target.style.backgroundColor = 'var(--brown-light)';
+                              e.target.style.color = 'var(--brown-primary)';
+                            }}
+                            onMouseOut={(e) => {
+                              e.target.style.backgroundColor = 'transparent';
+                              e.target.style.color = 'var(--sage-muted)';
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </label>
+                      </div>
+                    ))}
                     
-                    <label className="checkbox-label">
-                      <input 
-                        type="checkbox" 
-                        checked={tasks.jobStep}
-                        onChange={() => toggleTask('jobStep')}
-                        className="checkbox"
+                    {/* Add new job task - always at bottom */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: jobTasks.length > 0 ? '12px' : '0' }}>
+                      <input
+                        type="text"
+                        value={newJobTask}
+                        onChange={(e) => setNewJobTask(e.target.value)}
+                        placeholder={dailyEnergy === 'low' ? 'Only if you feel up to it...' : 'Add a job-related task...'}
+                        style={{
+                          flex: 1,
+                          padding: 'var(--spacing-sm)',
+                          border: '2px solid var(--border-input)',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: 'var(--font-size-sm)',
+                          fontFamily: 'var(--font-family)',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = 'var(--sage-primary)';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(122, 140, 120, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = 'var(--border-input)';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                        onKeyPress={(e) => e.key === 'Enter' && addJobTask()}
                       />
-                      <span className={`checkbox-text ${tasks.jobStep ? 'completed' : 'incomplete'}`} style={{ fontWeight: tasks.jobStep ? '500' : 'normal' }}>
-                        {selectedJobStep || "Pick something from the dropdown first"}
-                      </span>
-                    </label>
+                      <button
+                        onClick={addJobTask}
+                        className="btn btn-primary btn-small"
+                        disabled={!newJobTask.trim()}
+                      >
+                        Add
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -2379,31 +2672,82 @@ const ADHDSuccessTracker = () => {
                     {dailyEnergy === 'low' ? 'Future Building (When Ready)' : 'Career Building: Micro Progress'}
                   </h3>
                   
-                  <div style={{ marginBottom: '10px' }}>
-                    <select
-                      value={selectedCareerStep}
-                      onChange={(e) => setSelectedCareerStep(e.target.value)}
-                      className="select"
-                    >
-                      <option value="">
-                        {dailyEnergy === 'low' ? 'No pressure - only if it feels good...' : 'Choose one small career step...'}
-                      </option>
-                      {careerStepOptions.map((option, i) => (
-                        <option key={i} value={option}>{option}</option>
-                      ))}
-                    </select>
+                  <div style={{ marginBottom: '14px' }}>
+                    {/* Career tasks checklist */}
+                    {careerTasks.map((task) => (
+                      <div key={task.id} className="checkbox-item">
+                        <label className="checkbox-label">
+                          <input 
+                            type="checkbox" 
+                            checked={task.completed}
+                            onChange={() => toggleCareerTask(task.id)}
+                            className="checkbox"
+                          />
+                          <span className={`checkbox-text ${task.completed ? 'completed' : 'incomplete'}`}>
+                            {task.text}
+                          </span>
+                          <button
+                            onClick={() => removeCareerTask(task.id)}
+                            style={{
+                              marginLeft: 'auto',
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--sage-muted)',
+                              cursor: 'pointer',
+                              padding: '2px 6px',
+                              fontSize: 'var(--font-size-xs)',
+                              borderRadius: 'var(--radius-sm)',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseOver={(e) => {
+                              e.target.style.backgroundColor = 'var(--brown-light)';
+                              e.target.style.color = 'var(--brown-primary)';
+                            }}
+                            onMouseOut={(e) => {
+                              e.target.style.backgroundColor = 'transparent';
+                              e.target.style.color = 'var(--sage-muted)';
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </label>
+                      </div>
+                    ))}
                     
-                    <label className="checkbox-label">
-                      <input 
-                        type="checkbox" 
-                        checked={tasks.careerStep}
-                        onChange={() => toggleTask('careerStep')}
-                        className="checkbox"
+                    {/* Add new career task - always at bottom */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: careerTasks.length > 0 ? '12px' : '0' }}>
+                      <input
+                        type="text"
+                        value={newCareerTask}
+                        onChange={(e) => setNewCareerTask(e.target.value)}
+                        placeholder={dailyEnergy === 'low' ? 'No pressure - only if it feels good...' : 'Add a career-building task...'}
+                        style={{
+                          flex: 1,
+                          padding: 'var(--spacing-sm)',
+                          border: '2px solid var(--border-input)',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: 'var(--font-size-sm)',
+                          fontFamily: 'var(--font-family)',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = 'var(--sage-primary)';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(122, 140, 120, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = 'var(--border-input)';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                        onKeyPress={(e) => e.key === 'Enter' && addCareerTask()}
                       />
-                      <span className={`checkbox-text ${tasks.careerStep ? 'completed' : 'incomplete'}`} style={{ fontWeight: tasks.careerStep ? '500' : 'normal' }}>
-                        {selectedCareerStep || "Pick something from the dropdown first"}
-                      </span>
-                    </label>
+                      <button
+                        onClick={addCareerTask}
+                        className="btn btn-primary btn-small"
+                        disabled={!newCareerTask.trim()}
+                      >
+                        Add
+                      </button>
+                    </div>
                   </div>
                 </div>
               </>
@@ -2433,12 +2777,12 @@ const ADHDSuccessTracker = () => {
             </div>
 
             {/* Success Message */}
-            <div className={`card text-center ${completedCount >= 4 ? 'success' : ''}`} style={{ backgroundColor: completedCount >= 4 ? 'var(--bg-subtle)' : 'var(--bg-card)' }}>
+            <div className={`card text-center ${totalTasksCompleted >= 4 ? 'success' : ''}`} style={{ backgroundColor: totalTasksCompleted >= 4 ? 'var(--bg-subtle)' : 'var(--bg-card)' }}>
               <p className="text-primary" style={{ margin: '0 0 8px 0', fontWeight: '600', fontSize: 'var(--font-size-lg)' }}>
-                {completedCount >= 4 ? "SUCCESS!" : "Keep Going!"}
+                {totalTasksCompleted >= 4 ? "SUCCESS!" : "Keep Going!"}
               </p>
               <p className="text-muted" style={{ margin: '0', fontSize: 'var(--font-size-sm)' }}>
-                {completedCount >= 4 
+                {totalTasksCompleted >= 4 
                   ? "You're building the life you want, one tiny step at a time!"
                   : "Even tiny steps count. You're breaking out of being stuck!"
                 }
@@ -2775,77 +3119,9 @@ const ADHDSuccessTracker = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* Job Search Options */}
-                <div className="category-section">
-                  <h4 className="category-title">Job Search Steps</h4>
-                  <div className="options-list">
-                    {customOptions.jobSteps.map((option, index) => (
-                      <div key={index} className="option-item">
-                        <span>{option}</span>
-                        <button 
-                          onClick={() => removeOption('jobSteps', index)}
-                          className="remove-btn"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                    <div className="add-option-container">
-                      <input
-                        type="text"
-                        value={newOptionInputs.jobSteps}
-                        onChange={(e) => handleNewOptionChange('jobSteps', e.target.value)}
-                        placeholder="Add new job search step..."
-                        className="add-option-input"
-                        onKeyPress={(e) => e.key === 'Enter' && addOption('jobSteps')}
-                      />
-                      <button 
-                        onClick={() => addOption('jobSteps')}
-                        className="btn btn-primary btn-small"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <div>
-                {/* Career Building Options */}
-                <div className="category-section">
-                  <h4 className="category-title">Career Building Activities</h4>
-                  <div className="options-list">
-                    {customOptions.careerSteps.map((option, index) => (
-                      <div key={index} className="option-item">
-                        <span>{option}</span>
-                        <button 
-                          onClick={() => removeOption('careerSteps', index)}
-                          className="remove-btn"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                    <div className="add-option-container">
-                      <input
-                        type="text"
-                        value={newOptionInputs.careerSteps}
-                        onChange={(e) => handleNewOptionChange('careerSteps', e.target.value)}
-                        placeholder="Add new career activity..."
-                        className="add-option-input"
-                        onKeyPress={(e) => e.key === 'Enter' && addOption('careerSteps')}
-                      />
-                      <button 
-                        onClick={() => addOption('careerSteps')}
-                        className="btn btn-primary btn-small"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Focus Options */}
                 <div className="category-section">
                   <h4 className="category-title">Daily Focus Types</h4>
@@ -2922,6 +3198,107 @@ const ADHDSuccessTracker = () => {
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* Quote & Affirmation Settings */}
+            <div className="category-section">
+              <h4 className="category-title">Daily Inspiration</h4>
+              
+              {/* Inspirational Quotes Toggle */}
+              <div style={{ 
+                background: 'var(--bg-subtle)', 
+                padding: 'var(--spacing-md)', 
+                borderRadius: 'var(--radius-md)', 
+                marginBottom: 'var(--spacing-md)',
+                border: '1px solid var(--border-input)'
+              }}>
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 'var(--spacing-sm)',
+                  cursor: 'pointer',
+                  marginBottom: 'var(--spacing-sm)'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={useInspirationalQuotes}
+                    onChange={(e) => setUseInspirationalQuotes(e.target.checked)}
+                    style={{ transform: 'scale(1.2)' }}
+                  />
+                  <span style={{ fontWeight: '500', color: 'var(--sage-dark)' }}>
+                    Use inspirational quotes collection (50+ curated quotes)
+                  </span>
+                </label>
+                
+                {useInspirationalQuotes && (
+                  <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                    <button
+                      onClick={getNewInspirationalQuote}
+                      className="btn btn-primary btn-small"
+                    >
+                      Get New Quote
+                    </button>
+                    <p style={{ 
+                      fontSize: 'var(--font-size-xs)', 
+                      color: 'var(--sage-medium)', 
+                      margin: '6px 0 0 0' 
+                    }}>
+                      Curated collection of inspiring quotes and affirmations
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Personal Messages (when not using inspirational quotes) */}
+              {!useInspirationalQuotes && (
+                <div className="options-list">
+                  <div style={{ 
+                    fontSize: 'var(--font-size-sm)', 
+                    color: 'var(--sage-medium)', 
+                    marginBottom: 'var(--spacing-sm)',
+                    fontStyle: 'italic'
+                  }}>
+                    Your personal affirmations and messages:
+                    <br />
+                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--sage-light)' }}>
+                      💡 Tip: Daily affirmations you submit automatically get added here!
+                    </span>
+                  </div>
+                  {futureMessages.map((message, index) => (
+                    <div key={index} className="option-item">
+                      <span style={{ fontSize: 'var(--font-size-sm)' }}>{message}</span>
+                      <button 
+                        onClick={() => {
+                          setFutureMessages(prev => prev.filter((_, i) => i !== index));
+                          // Update daily message if it was the one being removed
+                          if (dailyMessage === message) {
+                            getNewPersonalMessage();
+                          }
+                        }}
+                        className="remove-btn"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <div className="add-option-container">
+                    <input
+                      type="text"
+                      value={newFutureMessage}
+                      onChange={(e) => setNewFutureMessage(e.target.value)}
+                      placeholder="Add personal affirmation or message..."
+                      className="add-option-input"
+                      onKeyPress={(e) => e.key === 'Enter' && addFutureMessage()}
+                    />
+                    <button 
+                      onClick={addFutureMessage}
+                      className="btn btn-primary btn-small"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="card" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-primary)' }}>
@@ -3034,6 +3411,15 @@ const ADHDSuccessTracker = () => {
           
           <div className="fullscreen-exit-hint">
             Click anywhere or press ESC to exit focus mode
+          </div>
+        </div>
+      )}
+
+      {/* Celebration Overlay */}
+      {showCelebration && (
+        <div className="celebration-overlay">
+          <div className="celebration-message">
+            {celebrationMessage}
           </div>
         </div>
       )}
